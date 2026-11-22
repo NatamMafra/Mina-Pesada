@@ -48,7 +48,8 @@ canvas{display:block}
  <p>Protótipo de simulador: retroescavadeira, pá carregadeira, caminhão caçamba e cavalo mecânico com carreta basculante.</p>
  <p><b>Máquinas:</b> joystick esquerdo dirige, direito comanda braço e concha · <b>Retro:</b> escolha Pá frontal ou Retro traseira · <b>Caminhões:</b> direção à esquerda, acelerar e ré/freio à direita · <b>Arraste a tela</b>: câmera · <b>Pinça</b>: zoom</p>
  <p>Cave no fosso ou nas pilhas de areia, pedra e minério, carregue os caminhões e descarregue na plataforma.</p>
- <p>🔧 <b>Novo:</b> Oficina DEDA no galpão alto atrás dos contêineres — pare um caminhão no círculo azul e vermelho para trocar rodas, cores e suspensão.</p>
+ <p>⌨️ <b>No PC:</b> W A S D ou setas dirigem · I K braço · J L concha · Q E báscula · H buzina · C câmera · arraste o mouse para olhar · rodinha dá zoom.</p>
+<p>🔧 <b>Novo:</b> Oficina DEDA no galpão alto atrás dos contêineres — pare um caminhão no círculo azul e vermelho para trocar rodas, cores e suspensão.</p>
 <p>Mineração <b>DEDA Terraplanagem</b> em Ilhota/SC, entre o Centro e a Ilhotinha.</p>
  <button id="go">▶ JOGAR</button>
  <p style="font-size:10px;opacity:.7;margin-top:10px">Ruas, rio e prédios de Ilhota: © OpenStreetMap contributors (ODbL). Casas complementares geradas.</p>
@@ -975,13 +976,13 @@ function bicudo(v,r,o){const col=o.col,W=o.W||2.3,z0=o.z0,zw=o.zw,zf=o.zf,top=o.
 function bascTrailer(v,o){const r=v.root,B=M.blk,tr=new THREE.Group();tr.rotation.order='YXZ';scene.add(tr);const TC2=o.col,TD=o.colD;
  for(const s of[-1,1])box(tr,.18,.32,9.6,B,s*.45,-.05,-4.3);box(tr,1.4,.25,1.2,M.grey,0,-.05,-.2);
  for(const s of[-1,1]){rbox(tr,.14,.95,.14,.03,M.grey,s*.65,-.6,-1.6,'x');box(tr,.35,.06,.35,M.steel,s*.65,-1.08,-1.6)}cyl(tr,.03,1.3,M.grey,0,-.4,-1.6,0,Math.PI/2);
- for(const s of[-1,1]){for(const z of[-6.3,-7.4,-8.5])wheel(v,tr,.55,.72,s*.95,-.85,z);rbox(tr,.85,.07,3.5,.03,B,s*.95,-.18,-7.4);box(tr,.6,.5,.03,B,s*.95,-.9,-9.0);lamp(tr,s*.95,-.45,-9.25,.3,.14);box(tr,.05,.3,4.2,M.steel,s*1.2,-.65,-3.6)
-  for(const z of[-6.3,-7.4,-8.5]){leaf(tr,s*.47,-.6,1.0,.03,.05,z);leaf(tr,s*.47,-.635,.8,.03,.04,z);leaf(tr,s*.47,-.67,.55,.03,.03,z)}}
- for(const z of[-6.3,-7.4,-8.5])cyl(tr,.07,1.72,M.grey,0,-.85,z,0,Math.PI/2,10);
+ const AXZ=[-4.0,-6.2,-8.4];for(const s of[-1,1]){for(const z of AXZ){wheel(v,tr,.55,.72,s*.95,-.85,z);rbox(tr,.85,.07,1.45,.03,B,s*.95,-.18,z);box(tr,.6,.45,.03,B,s*.95,-.95,z-.72)}box(tr,.6,.5,.03,B,s*.95,-.9,-9.0);lamp(tr,s*.95,-.45,-9.25,.3,.14);box(tr,.05,.3,4.2,M.steel,s*1.2,-.65,-3.6)
+  for(const z of AXZ){leaf(tr,s*.47,-.6,1.0,.03,.05,z);leaf(tr,s*.47,-.635,.8,.03,.04,z);leaf(tr,s*.47,-.67,.55,.03,.03,z)}}
+ for(const z of AXZ)cyl(tr,.07,1.72,M.grey,0,-.85,z,0,Math.PI/2,10);
  rbox(tr,2.3,.18,.18,.04,M.steel,0,-.75,-9.3);
  const bd=grp(tr,0,.15,-9.0);bd.userData.bedD=TD;box(bd,2.5,.1,9.8,TC2,0,.05,4.9);
  for(const s of[-1,1]){box(bd,.08,1.4,9.8,TC2,s*1.25,.75,4.9);rbox(bd,.16,.18,9.9,.05,TD,s*1.28,1.46,4.9);rbox(bd,.14,.14,9.8,.04,TD,s*1.28,.08,4.9);for(let i=0;i<9;i++)box(bd,.07,1.4,.14,TD,s*1.31,.75,.5+i*1.1);
-  for(let i=0;i<8;i++){box(bd,.02,.08,.3,M.tail,s*1.36,.2,1.0+i*1.1);box(bd,.02,.08,.3,M.white,s*1.36,.2,1.3+i*1.1)}if(o.name)decal(bd,o.name,2.2,.5,s*1.36,.85,5.0,s*Math.PI/2,o.nameCol||'#b3171c')}
+  for(let i=0;i<8;i++){box(bd,.02,.08,.3,M.tail,s*1.36,.2,1.0+i*1.1);box(bd,.02,.08,.3,M.white,s*1.36,.2,1.3+i*1.1)}if(0)decal(bd,o.name,2.2,.5,s*1.36,.85,5.0,s*Math.PI/2,o.nameCol||'#b3171c')}
  box(bd,2.5,1.6,.1,TC2,0,.85,9.8);for(let i=0;i<6;i++)box(bd,.5,.04,.06,M.steel,-.9,.2+i*.25,9.88);
  gate(v,bd,2.5,1.4,tr);
  joint(v,bd,'x',-1.0,0,.24,-1,'Báscula',0);addCont(v,bd,[-1.18,.12,.15],[1.18,1.4,9.6],{relDot:.85,capMax:1000,metal:true,open:new THREE.Vector3(0,0,-1)});
@@ -1444,7 +1445,8 @@ function psst(){burst(3500,.6,.55,.22,'highpass')}
 // ---------- UI ----------
 let cur=0,camMode=0,camYaw=0,camPitch=.32,camDist=12;
 const inp={x:0,y:0,sl:[]},keys={};
-addEventListener('keydown',e=>keys[e.key.toLowerCase()]=1);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(e.target&&e.target.tagName==='INPUT')return;keys[k]=1;if(e.repeat)return;
+ if(k==='h')hornOn=true;else if(k==='c')camBtn.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));else if(k==='escape')closePanels()});addEventListener('keyup',e=>{if(e.key.toLowerCase()==='h')hornOn=false});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 const updW=v=>{v.root.updateMatrixWorld(true);if(v.trailer)v.trailer.root.updateMatrixWorld(true)};
 // ================= Corte plano (assistente) =================
 let ASSIST=false;
@@ -2007,8 +2009,9 @@ function buildUI(){const v=vehicles[cur],k=v.kind,m=opMode(v);inp.sl=v.joints.ma
  const L={car:['Dirigir (▲ acelera · ▼ ré)',''],truck:['Direção ◀ ▶',''],loader:['Dirigir','Braço ▲▼ · Concha ◀▶ (direita despeja)'],dozer:['Esteiras (dirigir)','Lâmina ▲▼ · Escarificador ◀▶'],
   retroF:['Dirigir','Braço ▲▼ · Concha ◀▶ (direita despeja)'],retroT:['Lança ▲▼ · Giro ◀▶','Braço ▲▼ · Concha ◀▶'],excD:['Esteiras (dirigir)','Lança ▲▼ · Concha ◀▶'],excE:['Braço ▲▼ · Giro ◀▶','Lança ▲▼ · Concha ◀▶ (direita despeja)']}[MODES[k]?k+m:k];
  $('jl1').textContent=L[0];$('jl2').textContent=L[1]}
-function mapInput(v){const k=v.kind,m=opMode(v),sl=inp.sl;sl.fill(0);let x=J1.x,y=J1.y;const a2=CFG.ia?-J2.y:J2.y,a1=CFG.ia?-J1.y:J1.y,c2=CFG.ib?-J2.x:J2.x,tu=CFG.it?-1:1;
- if(k==='truck'){y=BT.f?1:BT.r?-1:0;sl[0]=(BT.u?1:BT.d?-1:0)*tu}
+const JJ1=J1,JJ2=J2;function mapInput(v){const k=v.kind,m=opMode(v),sl=inp.sl;sl.fill(0);const K=q=>keys[q]?1:0,J1={x:clamp(JJ1.x+K('arrowright')+K('d')-K('arrowleft')-K('a'),-1,1),y:clamp(JJ1.y+K('arrowup')+K('w')-K('arrowdown')-K('s'),-1,1)},J2={x:clamp(JJ2.x+K('l')-K('j'),-1,1),y:clamp(JJ2.y+K('i')-K('k'),-1,1)};
+ let x=J1.x,y=J1.y;const a2=CFG.ia?-J2.y:J2.y,a1=CFG.ia?-J1.y:J1.y,c2=CFG.ib?-J2.x:J2.x,tu=CFG.it?-1:1;
+ if(k==='truck'){y=BT.f||K('arrowup')||K('w')?1:BT.r||K('arrowdown')||K('s')?-1:0;sl[0]=(BT.u||K('q')?1:BT.d||K('e')?-1:0)*tu}
  else if(k==='loader'||(k==='retro'&&m==='F')){sl[0]=a2;sl[1]=-c2}
  else if(k==='retro'){sl[2]=-J1.x;sl[3]=a1;sl[4]=a2;sl[5]=-c2;x=0;y=0}
  else if(k==='exc'){sl[1]=a2;sl[3]=c2;if(m==='E'){sl[0]=-J1.x;sl[2]=a1;x=0;y=0}}
@@ -2045,7 +2048,7 @@ function gstep(v,dt,inp,post){updW(v);const p0=penetration(v),sv={x:v.x,z:v.z,ya
  v.blk=0;return r}
 function loop(t){if(!window.__manual){requestAnimationFrame(loop);if(CFG.fps===30&&t-last<30)return}const dt=Math.min(.05,(t-last)/1000);last=t;time+=dt;
  const kx=(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0),ky=(keys.arrowup||keys.w?1:0)-(keys.arrowdown||keys.s?1:0);
- const mi=mapInput(vehicles[cur]);const ai={x:clamp(mi.x+kx,-1,1),y:clamp(mi.y+ky,-1,1),sl:inp.sl};
+ const mi=mapInput(vehicles[cur]);const ai={x:clamp(mi.x,-1,1),y:clamp(mi.y,-1,1),sl:inp.sl};
  {const L=vehicles[cur];if(L.kind==='loader'&&!L.wk){if(L.hx===undefined)L.hx=clamp(-L.steer/L.cfg.steerMax,-1,1);if(J1.dbl){L.hx=0;J1.dbl=0}if(ai.x===0&&L.hxp)L.hx=clamp(-L.steer/L.cfg.steerMax,-1,1);L.hxp=ai.x;L.hx=clamp(L.hx+ai.x*dt*1.15,-1,1);if(Math.abs(L.hx)<.03&&ai.x===0)L.hx=Math.round(L.hx*50)/50;ai.x=L.hx}}let act=0,rel=0;
  const va=vehicles[cur];scene.updateMatrixWorld();
  vehicles.forEach((v,i)=>{if(i!==cur)v.hx=undefined;if(i===cur){const r=gstep(v,dt,ai,ASSIST&&ASC[ascKey(v)]?(q=>assistStep(q,dt,ai.sl)):null);act=r[0];rel=r[1]}else if(v.wk)gstep(v,dt,wkStep(v,dt));else if(v.ai)gstep(v,dt,aiDrive(v,dt));else updVeh(v,dt,ZERO)});
@@ -2059,7 +2062,7 @@ function loop(t){if(!window.__manual){requestAnimationFrame(loop);if(CFG.fps===3
  if(time>tNext){let any=0;for(const c of CH)if(c.dirty){c.geo.computeVertexNormals();c.dirty=false;any=1}if(any)tNext=time+.15}
  for(const o of vehicles)for(const b of o.beacons)b.material.emissiveIntensity=o===v?(Math.sin(time*9)>0?2.2:.3):.2;
  // câmera
- if(camMode>2&&v.lat){const L=v.lat,sd=camMode===3?-1:1;L.obj.localToWorld(camP.set(sd*L.pos[0],L.pos[1],L.pos[2]));camera.position.lerp(camP,1-Math.exp(-dt*10));
+ if(OFI.camOn){camera.position.lerp(OFI.camP,1-Math.exp(-dt*4));camera.lookAt(OFI.camT)}else if(camMode>2&&v.lat){const L=v.lat,sd=camMode===3?-1:1;L.obj.localToWorld(camP.set(sd*L.pos[0],L.pos[1],L.pos[2]));camera.position.lerp(camP,1-Math.exp(-dt*10));
   L.bk.getWorldPosition(camL);L.obj.localToWorld(camT.set(L.look[0],L.look[1]+(camPitch-.32)*3,L.look[2]));camL.lerp(camT,.5);camera.lookAt(camL)}
  else if((camMode===2||(camMode===1&&v.kind==='exc'))&&v.cab2){const o=v.cab2;o.obj.localToWorld(camP.copy(o.pos));camera.position.copy(camP);camL.copy(o.dir).transformDirection(o.obj.matrixWorld);
   const a=Math.atan2(camL.x,camL.z)+camYaw,p=Math.asin(clamp(camL.y,-1,1))-(camPitch-.32)*.6;camera.lookAt(camP.x+Math.sin(a)*Math.cos(p)*10,camP.y+Math.sin(p)*10,camP.z+Math.cos(a)*Math.cos(p)*10)}
@@ -2077,7 +2080,7 @@ function loop(t){if(!window.__manual){requestAnimationFrame(loop);if(CFG.fps===3
  if(!window.__norender)renderer.render(scene,camera)}
 requestAnimationFrame(loop);
 // ================= OFICINA DE PERSONALIZAÇÃO (dentro da DEDA) =================
-const OFI={x:71.5,z:-19,L:19,W:11,y:.05,cx:69,cz:-19,R:2.5};
+const OFI={x:71.5,z:-19,L:19,W:11,y:.05,cx:71,cz:-19,R:2.5,camOn:false,camP:new THREE.Vector3(63,5.6,-23.9),camT:new THREE.Vector3(68,1.3,-16.2)};
 // rodas novas
 const RIMX=(()=>{const T=(bg,draw)=>canvasTex(128,128,g=>{g.fillStyle=bg;g.fillRect(0,0,128,128);draw(g)});
  const C=(g,r,col)=>{g.fillStyle=col;g.beginPath();g.arc(64,64,r,0,7);g.fill()};
@@ -2114,7 +2117,7 @@ for(const v of vehicles)if(v.paint){suspInit(v);ofiApply(v)}
   if(ch){c.pos.needsUpdate=true;c.dirty=true;c.geo.computeVertexNormals()}}
  if(DX.ground)DX.ground(X,Z,12,0);for(let x=X-L/2-4;x<=X+L/2+6;x+=3)for(let z=Z-W/2-1;z<=Z+W/2+1;z+=3)grClear(x,z,2.2);
  const G=grp(scene,X,Y,Z),CON=std(0xa9a7a1,.9,0,{map:grimeTex});
- const wallM=std(0xc9cdcf,.55,.35,{map:ribTex,transparent:true,opacity:1}),roofM=std(0x7a8288,.45,.6,{map:ribTex,transparent:true,opacity:1,side:THREE.DoubleSide}),trimM=std(0xe0a512,.5,.25,{transparent:true,opacity:1});
+ const wallM=std(0xc9cdcf,.55,.35,{map:ribTex}),roofM=std(0x7a8288,.45,.6,{map:ribTex,transparent:true,opacity:1,side:THREE.DoubleSide}),trimM=std(0xe0a512,.5,.25,{});
  OFI.shell=[wallM,roofM,trimM];const sh=(m)=>{m.castShadow=false;return m};
  box(G,L+.4,.3,W+.4,CON,0,-.13,0);box(G,7,.3,9,CON,L/2+3.6,-.15,0);
  // paredes
@@ -2160,9 +2163,9 @@ for(const v of vehicles)if(v.paint){suspInit(v);ofiApply(v)}
 // ---------- botão e painel da oficina ----------
 const ofiB=document.createElement('button');ofiB.className='btn on';ofiB.textContent='🔧 Abrir oficina';
 ofiB.style.cssText='position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:8;display:none;font-size:15px;padding:10px 18px;background:#e0a512;color:#111;font-weight:800;border-radius:10px;border:0';document.body.appendChild(ofiB);
-const ofiP=document.createElement('div');ofiP.id='ofip';ofiP.className='panel';ofiP.style.maxHeight='78vh';ofiP.style.overflowY='auto';document.body.appendChild(ofiP);
+const ofiP=document.createElement('div');ofiP.id='ofip';ofiP.className='panel';ofiP.style.cssText+='max-height:82vh;left:auto;right:8px;transform:none;top:52px;max-width:47vw;font-size:12px';ofiP.style.overflowY='auto';document.body.appendChild(ofiP);
 for(const ev of['pointerdown','pointermove','touchstart','touchmove','mousedown','wheel'])ofiP.addEventListener(ev,e=>e.stopPropagation(),{passive:true});
-ofiB.onpointerdown=e=>{e.stopPropagation();closePanels();ofiP.style.display='block';buildOfi()};
+ofiB.onpointerdown=e=>{e.stopPropagation();closePanels();ofiP.style.display='block';OFI.camOn=true;buildOfi()};
 const CORES=[['Branco',0xe6e6e2],['Prata',0xb5b9bd],['Grafite',0x4a4f55],['Preto',0x1d1e20],['Vermelho',0xb3171c],['Vinho',0x6b1426],['Laranja',0xe2701a],['Amarelo',0xe8b510],['Verde',0x2f6b3a],['Azul',0x1f4fa0],['Azul claro',0x6aa6d6],['Creme',0xe8dcb5]];
 function buildOfi(){const v=vehicles[cur];if(!v.paint){ofiP.style.display='none';return}const o=v.ofi||(v.ofi={});const save=()=>{ofiSave[v.name]=o;ofiStore()};
  ofiP.innerHTML='<div class="ttl">🔧 Oficina DEDA — '+v.short+'</div>';
@@ -2173,13 +2176,12 @@ function buildOfi(){const v=vehicles[cur];if(!v.paint){ofiP.style.display='none'
  slider('Suspensão traseira','b',0,.45);slider('Suspensão dianteira','f',-.12,.15);
  {const r=row('Rodas');for(const [k,n] of RIMN)btn(r,n,(o.rim||'t')===k,()=>{o.rim=k;setRims(v,k);save();buildOfi()})}
  const sw=(t,key)=>{const r=row(t);r.style.maxWidth='330px';btn(r,'Original',o[key]===undefined,()=>{delete o[key];paintSet(v,key);save();buildOfi()});
-  for(const [n,c] of CORES){const b=btn(r,'',o[key]===c,()=>{o[key]=c;paintSet(v,key,c);save();buildOfi()},'width:30px;height:30px;padding:0;border-radius:15px;background:#'+c.toString(16).padStart(6,'0')+';'+(o[key]===c?'outline:3px solid #fff;':''));b.title=n}};
+  for(const [n,c] of CORES){const b=btn(r,'',o[key]===c,()=>{o[key]=c;paintSet(v,key,c);save();buildOfi()},'width:26px;height:26px;padding:0;border-radius:13px;background:#'+c.toString(16).padStart(6,'0')+';'+(o[key]===c?'outline:3px solid #fff;':''));b.title=n}};
  sw('Cor da cabine','cab');sw(v.trailer?'Cor da carreta':'Cor da caçamba','bed');
  {const r=row('');btn(r,'↩️ Restaurar original',false,()=>{for(const k of['f','b','rim','cab','bed'])delete o[k];ofiApply(v);save();buildOfi()});btn(r,'✔️ Fechar',true,()=>{ofiP.style.display='none'})}}
 setInterval(()=>{const v=vehicles[cur];if(!v)return;const inC=!!v.paint&&Math.hypot(v.x-OFI.cx,v.z-OFI.cz)<OFI.R+.7,open=ofiP.style.display==='block';
  ofiB.style.display=inC&&Math.abs(v.speed)<.8&&!open?'block':'none';if(open&&!inC)ofiP.style.display='none';
- const inside=camMode===0&&Math.abs(v.x-OFI.x)<OFI.L/2+5&&Math.abs(v.z-OFI.z)<OFI.W/2+3,op=inside?.16:1;
- for(const m of OFI.shell)if(m.opacity!==op){m.opacity=op;m.depthWrite=op===1}},250);
+ OFI.camOn=ofiP.style.display==='block'},250);
 window.__OFI={OFI,suspApply,ofiApply,setRims,paintSet,buildOfi,ofiP,ofiB};window.__G={conts,spawnHeld,partsArr:parts,MIS,CITY,MTN,optUpdate,OPT,spotStart,excPos,excFace,circles,spotG,blockers,NAV:typeof NAV!=="undefined"?NAV:null,follow,updW,planMan,dubins,dubSample,wkHit,wkObs,wkTer,hullPts:typeof hullPts!=="undefined"?hullPts:null,inBox:typeof inBox!=="undefined"?inBox:null,WK,wkStart,wkStop,bedInfo,findPile,setAssist:b=>{ASSIST=b},assistStep,DX,navPath,aiDrive,modT,CFG,applyQuality,applyTime,place:(v,x,z,yaw)=>{v.x=x;v.z=z;v.yaw=yaw;v.speed=0;v.steer=0;updVeh(v,0,ZERO,true)},updVeh,renderer,scene,vehicles,conts,parts,J1,J2,BT,select,setMode,loop,getH,penetration,inp,spawnHeld,get cur(){return cur},get camMode(){return camMode},camera,camBtn};
 })();
 </script>
