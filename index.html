@@ -179,7 +179,7 @@ const EDT=(()=>{let d=null;try{d=JSON.parse(localStorage.getItem('mp_objs')||'nu
  const gat=(M,x,z)=>{const fx=x/10,fz=z/10,i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j,g=(a,b)=>M[a+','+b]||0;return(g(i,j)*(1-u)+g(i+1,j)*u)*(1-v)+(g(i,j+1)*(1-u)+g(i+1,j+1)*u)*v};
  const hT=Object.keys(T).length>0,hR=Object.keys(R).length>0;
  return{objetos:d.objetos||[],terreno:T,estrada:R,ruas:d.ruas||{},T0:Object.assign({},T),R0:Object.assign({},R),td:(x,z)=>hT?gat(T,x,z)+(hR?gat(R,x,z):0):hR?gat(R,x,z):0,rd:(x,z)=>hR?gat(R,x,z):0}})();
-const CITY=(()=>{const D=ILH,[GX0,GZ0,GCS,GNX,GNZ]=D.g,b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+window.__EDT=EDT;const CITY=(()=>{const D=ILH,[GX0,GZ0,GCS,GNX,GNZ]=D.g,b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
  if(Object.keys(EDT.estrada).length)for(const k in D.ry){const a=D.r[+k],ry=D.ry[k];for(let n=0;n<ry.length&&2+n*2+1<a.length;n++)ry[n]+=Math.round(EDT.rd(a[2+n*2]/10,a[3+n*2]/10)*10)}
  const HQ=b64(D.H),MQ=b64(D.M),SX0=-80,SX1=240,SZ0=-80,SZ1=80,EX0=GX0,EZ0=GZ0,EX1=GX0+GCS*(GNX-1),EZ1=GZ0+GCS*(GNZ-1);
  const hq=q=>q*.6-8;
@@ -203,8 +203,25 @@ const CITY=(()=>{const D=ILH,[GX0,GZ0,GCS,GNX,GNZ]=D.g,b64=s=>Uint8Array.from(at
   const np=(a.length-2)>>1;if(e.ramp||Object.keys(e.h||{}).length){let ry=D.ry[ri];if(!ry){ry=[];for(let n=0;n<np;n++)ry.push(Math.round(h(a[2+n*2]/10,a[3+n*2]/10)*10));D.ry[ri]=ry}
    if(e.ramp){const L=[0];for(let n=1;n<np;n++)L.push(L[n-1]+Math.hypot(a[2+n*2]-a[n*2],a[3+n*2]-a[1+n*2]));const y0=ry[0],y1=ry[np-1];for(let n=1;n<np-1;n++)ry[n]=Math.round(y0+(y1-y0)*L[n]/L[np-1])}
    for(const n in e.h||{})ry[n]=Math.round(ry[n]+e.h[n]*10)}}
- const DK=new Map(),dkAdd=(x,z,y)=>{const k=Math.floor(x/10)+','+Math.floor(z/10);let a=DK.get(k);if(!a)DK.set(k,a=[]);a.push([x,z,y])};
- for(const k in D.ry){const a=D.r[+k],ry=D.ry[k];for(let i=2,n=0;i+3<a.length;i+=2,n++){const x0=a[i]/10,z0=a[i+1]/10,x1=a[i+2]/10,z1=a[i+3]/10,y0=ry[n]/10,y1=ry[n+1]/10,L=Math.hypot(x1-x0,z1-z0),m=Math.max(1,Math.ceil(L/2));for(let q=0;q<=m;q++){const t=q/m;dkAdd(x0+(x1-x0)*t,z0+(z1-z0)*t,y0+(y1-y0)*t)}}}
+ // rampas de acesso à ponte: perfil contínuo do chão até o tabuleiro (os dados vinham com altura 0 no meio de morros)
+ for(const k in D.ry){const a=D.r[+k];if(a[1]||(EDT.ruas&&EDT.ruas[k]))continue;let ry=D.ry[k];
+  const P=[],Y=[];for(let i=2,n=0;i+1<a.length;i+=2,n++){const x=a[i]/10,z=a[i+1]/10;if(n>0){const px=P[P.length-1][0],pz=P[P.length-1][1],L=Math.hypot(x-px,z-pz),m=Math.ceil(L/6),y0=Y[Y.length-1],y1=ry[n]/10;for(let q=1;q<m;q++){P.push([px+(x-px)*q/m,pz+(z-pz)*q/m]);Y.push(y0+(y1-y0)*q/m)}}P.push([x,z]);Y.push(ry[n]/10)}
+  const n=P.length,T=P.map(p=>meshH(p[0],p[1])),top=Y[0]>Y[n-1]?0:n-1;let y=Y.map((v,i)=>v>.3?Math.max(v,T[i]):T[i]);
+  for(let it=0;it<6;it++){const o=y.slice();for(let i=0;i<n;i++){if(i===top||i===n-1-top)continue;let sm=0,c=0;for(let q=-4;q<=4;q++){const j=i+q;if(j>=0&&j<n){const w=5-Math.abs(q);sm+=o[j]*w;c+=w}}y[i]=Math.max(sm/c,T[i]-1.5)}}
+  y[n-1-top]=T[n-1-top];y[top]=Y[top];const far=n-1-top,dir=top>far?1:-1;
+  for(let it=0;it<8;it++){for(let i=far+dir;i!==top;i+=dir)if(Math.abs(y[i]-y[i-dir])>.6)y[i]=y[i-dir]+Math.sign(y[i]-y[i-dir])*.6;for(let i=top-dir;i!==far;i-=dir)if(Math.abs(y[i]-y[i+dir])>.6)y[i]=y[i+dir]+Math.sign(y[i]-y[i+dir])*.6;
+   const o=y.slice();for(let i=0;i<n;i++){if(i===top||i===far)continue;let sm=0,c=0;for(let q=-2;q<=2;q++){const j=i+q;if(j>=0&&j<n){const w=3-Math.abs(q);sm+=o[j]*w;c+=w}}y[i]=sm/c}}
+  for(let i=top-dir;i!==far;i-=dir)if(Math.abs(y[i]-y[i+dir])>.62)y[i]=y[i+dir]+Math.sign(y[i]-y[i+dir])*.62;
+  const na=[a[0],a[1]];for(const p of P)na.push(Math.round(p[0]*10),Math.round(p[1]*10));D.r[+k]=na;D.ry[k]=y.map(v=>Math.round(v*10));if(!EDT.__auto)EDT.__auto=[];EDT.__auto.push(+k)}
+ const DK=new Map(),dkAdd=(x,z,y,ux,uz,sl)=>{const k=Math.floor(x/10)+','+Math.floor(z/10);let a=DK.get(k);if(!a)DK.set(k,a=[]);a.push([x,z,y,ux||0,uz||0,sl||0])};
+ for(const k in D.ry){const a=D.r[+k],ry=D.ry[k];for(let i=2,n=0;i+3<a.length;i+=2,n++){const x0=a[i]/10,z0=a[i+1]/10,x1=a[i+2]/10,z1=a[i+3]/10,y0=ry[n]/10,y1=ry[n+1]/10,L=Math.hypot(x1-x0,z1-z0),m=Math.max(1,Math.ceil(L/2));for(let q=0;q<=m;q++){const t=q/m;dkAdd(x0+(x1-x0)*t,z0+(z1-z0)*t,y0+(y1-y0)*t,(x1-x0)/(L||1),(z1-z0)/(L||1),(y1-y0)/(L||1))}}}
+ // casas que caem em cima de uma rua (dados do mapa) saem: viram "parede invisível" para os carros
+ const BADB=new WeakSet();{const RWb=[9.5,7.5,6.5,4.2,3.6],G=new Map(),gk=(x,z)=>Math.floor(x/30)+','+Math.floor(z/30);
+  D.r.forEach((a,ri)=>{const hw=(RWb[a[0]]||6)/2;for(let i=2;i+3<a.length;i+=2){const s=[a[i]/10,a[i+1]/10,a[i+2]/10,a[i+3]/10,hw];const x0=Math.min(s[0],s[2])-hw,x1=Math.max(s[0],s[2])+hw,z0=Math.min(s[1],s[3])-hw,z1=Math.max(s[1],s[3])+hw;
+   for(let gx=Math.floor(x0/30);gx<=Math.floor(x1/30);gx++)for(let gz=Math.floor(z0/30);gz<=Math.floor(z1/30);gz++){const k=gx+','+gz;let l=G.get(k);if(!l)G.set(k,l=[]);l.push(s)}}});
+  const dseg=(x,z,s)=>{const ex=s[2]-s[0],ez=s[3]-s[1],L=ex*ex+ez*ez||1,t=clamp(((x-s[0])*ex+(z-s[1])*ez)/L,0,1);return Math.hypot(s[0]+ex*t-x,s[1]+ez*t-z)};
+  for(const a of D.b){const pts=[];let cx=0,cz=0;for(let i=2;i<a.length;i+=2){pts.push([a[i]/10,a[i+1]/10]);cx+=a[i]/10;cz+=a[i+1]/10}if(pts.length<3)continue;cx/=pts.length;cz/=pts.length;
+   const test=[[cx,cz,1]].concat(pts.map(p=>[p[0]*.8+cx*.2,p[1]*.8+cz*.2,0]));let bad=false;for(const [x,z,c] of test){const l=G.get(gk(x,z));if(l)for(const s of l)if(dseg(x,z,s)<s[4]-.4+(c?1:0)){bad=true;break}if(bad)break}if(bad)BADB.add(a)}}
  // aterro das rampas da ponte: o terreno sobe junto com a via (asfalto não fica "voando")
  {const prot=new Uint8Array(MNX*MNZ),near=(x,z,r,f)=>{const i0=Math.max(0,Math.ceil((x-r-EX0)/10)),i1=Math.min(MNX-1,Math.floor((x+r-EX0)/10)),j0=Math.max(0,Math.ceil((z-r-EZ0)/10)),j1=Math.min(MNZ-1,Math.floor((z+r-EZ0)/10));for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const d=Math.hypot(EX0+i*10-x,EZ0+j*10-z);if(d<r)f(j*MNX+i,d)}};
   const segs=(a,st,f)=>{for(let i=2;i+3<a.length;i+=2){const x0=a[i]/10,z0=a[i+1]/10,x1=a[i+2]/10,z1=a[i+3]/10,m=Math.max(1,Math.ceil(Math.hypot(x1-x0,z1-z0)/st));for(let q=0;q<=m;q++)f(x0+(x1-x0)*q/m,z0+(z1-z0)*q/m,(i-2)/2,q/m)}};
@@ -212,9 +229,10 @@ const CITY=(()=>{const D=ILH,[GX0,GZ0,GCS,GNX,GNZ]=D.g,b64=s=>Uint8Array.from(at
   const H0=VH.slice();
   const bd=new Float32Array(MNX*MNZ).fill(1e9),by=new Float32Array(MNX*MNZ);for(const k in D.ry){const a=D.r[+k];if(a[1])continue;const ry=D.ry[k];segs(a,1.5,(x,z,n,t)=>{const y=(ry[n]+((ry[n+1]??ry[n])-ry[n])*t)/10-.3;near(x,z,24,(v,d)=>{if(d<bd[v]){bd[v]=d;by[v]=y}})})}
   for(let v=0;v<VH.length;v++){if(prot[v]||bd[v]>23||by[v]<.2)continue;const e=by[v]-Math.max(0,bd[v]-9)*.7;if(e>VH[v])VH[v]=e}
-  for(const ri in(EDT.ruas||{})){const a=D.r[+ri],ry=D.ry[ri];if(!a||!ry)continue;segs(a,1.5,(x,z,n,t)=>{const y=(ry[n]+((ry[n+1]??ry[n])-ry[n])*t)/10-.3;near(x,z,24,(v,d)=>{const lim=y+Math.max(0,d-7)*.75;if(VH[v]>lim)VH[v]=lim;const fl=y-Math.max(0,d-7)*.7;if(d<9&&VH[v]<fl)VH[v]=fl})})}
+  for(const ri of Object.keys(EDT.ruas||{}).concat(EDT.__auto||[])){const a=D.r[+ri],ry=D.ry[ri];if(!a||!ry)continue;const bst=new Map();segs(a,1.5,(x,z,n,t)=>{const y=(ry[n]+((ry[n+1]??ry[n])-ry[n])*t)/10+.08;near(x,z,26,(v,d)=>{const b=bst.get(v);if(!b||d<b[0])bst.set(v,[d,y])})});for(const [v,[d,y]] of bst){const lim=y+Math.max(0,d-11)*.75;if(VH[v]>lim)VH[v]=lim;const fl=y-Math.max(0,d-11)*.7;if(d<18&&VH[v]<fl)VH[v]=fl}}
   // ---- nivelamento das ruas: perfil suave ao longo de cada rua, terreno em volta acompanha ----
   {const RWg=[9.5,7.5,6.5,4.2,3.6],inMine=(x,z)=>x>-90&&x<250&&z>-90&&z<90,lock=new Uint8Array(MNX*MNZ);
+   const lockR=new Uint8Array(MNX*MNZ);for(const ri of Object.keys(D.ry)){if(D.r[+ri][1])continue;segs(D.r[+ri],2,(x,z)=>near(x,z,10,v=>lockR[v]=1))}
    const order=D.r.map((a,ri)=>ri).filter(ri=>!D.ry[ri]&&D.r[ri].length>=6).sort((p,q)=>D.r[p][0]-D.r[q][0]||(q-p));
    for(let pass=0;pass<6;pass++)for(const ri of order){const a=D.r[ri],P=[];segs(a,2.5,(x,z)=>{const l=P[P.length-1];if(!l||Math.hypot(x-l[0],z-l[1])>.3)P.push([x,z])});if(P.length<3)continue;
     const raw=P.map(p=>meshH(p[0],p[1])),y=raw.slice(),n=y.length,W=RWg[a[0]]||6;
@@ -225,12 +243,16 @@ const CITY=(()=>{const D=ILH,[GX0,GZ0,GCS,GNX,GNZ]=D.g,b64=s=>Uint8Array.from(at
     for(let i=0;i<n;i++)if(inMine(P[i][0],P[i][1]))y[i]=raw[i];
     for(let i=1;i<n;i++){const g=2.5*.13;if(y[i]-y[i-1]>g)y[i]=y[i-1]+g;if(y[i-1]-y[i]>g)y[i]=y[i-1]-g}
     const best=new Map();for(let i=0;i<n;i++){const [x,z]=P[i];if(inMine(x,z))continue;near(x,z,W/2+16,(v,d)=>{const b=best.get(v);if(!b||d<b[0])best.set(v,[d,y[i]])})}
-    const full=Math.max(W/2+3,7.6);for(const [v,[d,yy]] of best){if(lock[v]&&pass===0)continue;const w=d<=full?1:d<full+10?.5*(1+Math.cos(Math.PI*(d-full)/10)):0;if(!w)continue;VH[v]+=(yy-VH[v])*w;if(w>.99)lock[v]=1}}}}
- const deckRaw=(x,z)=>{if(!DK.size)return -99;const kx=Math.floor(x/10),kz=Math.floor(z/10);let bd=24.5,by=-99;for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const a=DK.get((kx+dx)+','+(kz+dz));if(a)for(const p of a){const d=(p[0]-x)**2+(p[1]-z)**2;if(d<bd){bd=d;by=p[2]}}}return by>.3?by+.13:-99};
+    const full=Math.max(W/2+3,7.6);for(const [v,[d,yy]] of best){if(lockR[v]||(lock[v]&&pass===0))continue;const w=d<=full?1:d<full+10?.5*(1+Math.cos(Math.PI*(d-full)/10)):0;if(!w)continue;VH[v]+=(yy-VH[v])*w;if(w>.99)lock[v]=1}}}
+  // vão livre embaixo da ponte (o morro não encosta no tabuleiro); perto das cabeceiras as rampas aterram de novo
+  for(const ri of Object.keys(D.ry).filter(k=>D.r[+k][1])){const a=D.r[+ri],ry=D.ry[ri];const bst=new Map();segs(a,2,(x,z,n,t)=>{const y=(ry[n]+((ry[n+1]??ry[n])-ry[n])*t)/10;near(x,z,22,(v,d)=>{const b=bst.get(v);if(!b||d<b[0])bst.set(v,[d,y])})});
+   const rp=Object.keys(D.ry).filter(k=>!D.r[+k][1]).map(k=>D.r[+k]);for(const [v,[d,y]] of bst){const vx=EX0+(v%MNX)*10,vz=EZ0+Math.floor(v/MNX)*10;let nearRamp=false;for(const q of rp){const ex=q[q.length-2]/10,ez=q[q.length-1]/10,sx=q[2]/10,sz=q[3]/10;if(Math.hypot(vx-ex,vz-ez)<24||Math.hypot(vx-sx,vz-sz)<24){nearRamp=true;break}}
+    const lim=y-(nearRamp?1.2:2.2)+Math.max(0,d-5)*.25;if(VH[v]>lim)VH[v]=lim}}}
+ const deckRaw=(x,z)=>{if(!DK.size)return -99;const kx=Math.floor(x/10),kz=Math.floor(z/10);let bd=24.5,by=-99,ws=0,wy=0;for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const a=DK.get((kx+dx)+','+(kz+dz));if(a)for(const p of a){const d=(p[0]-x)**2+(p[1]-z)**2;if(d<bd){bd=d;by=p[2]+p[5]*((x-p[0])*p[3]+(z-p[1])*p[4])}}}return by>.3?by+.13:-99};
  const C0={refY:undefined};
- const deck=(x,z)=>{const y=deckRaw(x,z);if(y<-50)return y;if(C0.refY!==undefined&&C0.refY<y-2.5)return -99;return y};
+ const deck=(x,z)=>{const y=deckRaw(x,z);if(y<-50)return y;if(C0.refY!==undefined&&C0.refY<y-1.3)return -99;return y};
  const hv=(x,z)=>Math.max(meshH(x,z),deck(x,z));
- return{C0,h,hv,meshH,deck,deckRaw,rawH,siteD,matW,bridgeY,onBridge,BR,DECK,EX0,EZ0,EX1,EZ1,inExt:(x,z)=>x>EX0&&x<EX1&&z>EZ0&&z<EZ1,tiles:[]}})();
+ return{BADB,C0,h,hv,meshH,deck,deckRaw,rawH,siteD,matW,bridgeY,onBridge,BR,DECK,EX0,EZ0,EX1,EZ1,inExt:(x,z)=>x>EX0&&x<EX1&&z>EZ0&&z<EZ1,tiles:[]}})();
 
 CITY.build=function(){const D=ILH,C=CITY,TS=400,tiles=new Map(),T0=performance.now();
  const tileOf=(x,z)=>{const k=Math.floor((x-C.EX0)/TS)+','+Math.floor((z-C.EZ0)/TS);if(!tiles.has(k))tiles.set(k,{k,parts:{}});return tiles.get(k)};
@@ -274,7 +296,7 @@ CITY.build=function(){const D=ILH,C=CITY,TS=400,tiles=new Map(),T0=performance.n
    quad(B,[x+px,y,z+pz],[x+px+ux*e*2,y,z+pz+uz*e*2],[x-px+ux*e*2,y,z-pz+uz*e*2],[x-px,y,z-pz],col)}}}};
  D.r.forEach((a,ri)=>{const c=a[0],pl=[];for(let i=2;i<a.length;i+=2)pl.push([a[i]/10,a[i+1]/10]);if(pl.length<2)return;
   const GATES=[[-80,-68.7],[240,-70.8]],gd=p=>Math.min(...GATES.map(g=>Math.hypot(p[0]-g[0],p[1]-g[1]))),gate=gd(pl[0])<3||gd(pl[pl.length-1])<3;
-  const r=ribbon(pl,gate?p=>RW[c]+(11.4-RW[c])*(1-sstep(4,40,gd(p))):RW[c],c,c===4?'dirt':'asf',D.ry[ri],D.ry[ri]&&!a[1]);if(c<=1||gate)dash(r,8,3.5,.15,COL_Y,'line')});
+  const r=ribbon(pl,gate?p=>RW[c]+(11.4-RW[c])*(1-sstep(4,40,gd(p))):RW[c],c,c===4?'dirt':'asf',D.ry[ri],D.ry[ri]&&!a[1]&&!(EDT.__auto||[]).includes(+ri));if(c<=1||gate)dash(r,8,3.5,.15,COL_Y,'line')});
  // asfalto da rodovia dentro do pátio (continua a Rua José Izidro Vieira sem degrau)
  {const P=[[-80,-68],[82,-68],[240,-71]];for(let i=0;i+1<P.length;i++){const a=P[i],b=P[i+1],Ls=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.ceil(Ls/4),ux=(b[0]-a[0])/Ls,uz=(b[1]-a[1])/Ls,nx=-uz*5.7,nz=ux*5.7;
   for(let k=0;k<n;k++){const p0=[a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n],p1=[a[0]+(b[0]-a[0])*(k+1)/n,a[1]+(b[1]-a[1])*(k+1)/n],y=(x,z)=>C.h(x,z)+.012;
@@ -298,7 +320,7 @@ CITY.build=function(){const D=ILH,C=CITY,TS=400,tiles=new Map(),T0=performance.n
  // ---------- prédios do OpenStreetMap ----------
  const WALL=[0xe8dcc0,0xf0efe6,0xd9c3a3,0xc9d6dc,0xe6d0d0,0xd8e0c8,0xf2e3b3,0xcfd8e0,0xe9c9a0,0xb9d0c0].map(LIN),ROOF=[0x9b4a32,0x5d5f63,0x8a3b2b,0x8f9396].map(LIN);
  const IND=[0xb8bec4,0x9aa3a8,0xc9c4b4].map(LIN),FLAT=LIN(0x77736b),GLS=LIN(0x3e5566),DOOR=LIN(0x5b4030);
- D.b.forEach((a,bi)=>{const kind=a[0],hh=a[1]/10,pts=[];for(let i=2;i<a.length;i+=2)pts.push([a[i]/10,a[i+1]/10]);if(pts.length<3)return;
+ D.b.forEach((a,bi)=>{if(CITY.BADB.has(a))return;const kind=a[0],hh=a[1]/10,pts=[];for(let i=2;i<a.length;i+=2)pts.push([a[i]/10,a[i+1]/10]);if(pts.length<3)return;
   let ar=0;for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];ar+=p[0]*q[1]-q[0]*p[1]}if(ar<0)pts.reverse();
   let y0=1e9,cx=0,cz=0;for(const p of pts){y0=Math.min(y0,C.meshH(p[0],p[1]));cx+=p[0];cz+=p[1]}cx/=pts.length;cz/=pts.length;y0-=.4;const y1=y0+.4+hh;
   const B=buf(tileOf(cx,cz),'bld'),wc=kind===1?IND[bi%3]:kind===2?LIN(0xf4f2ea):WALL[bi%WALL.length];
@@ -387,7 +409,7 @@ CITY.build=function(){const D=ILH,C=CITY,TS=400,tiles=new Map(),T0=performance.n
  {const GC=25,GRD=new Map(),add=(x,z,o)=>{const k=Math.floor(x/GC)+','+Math.floor(z/GC);let a=GRD.get(k);if(!a)GRD.set(k,a=[]);if(!a.includes(o))a.push(o)};
   for(let o=0;o+8<=HS.length;o+=8){const cx=dv.getInt16(o,true)/10,cz=dv.getInt16(o+2,true)/10,ang=HS[o+4]/256*Math.PI*2,w=HS[o+5]/10,d=HS[o+6]/10,s=Math.sin(ang),c=Math.cos(ang),q={t:0,cx,cz,s,c,hw:w/2+.15,hd:d/2+.15};
    for(const dx of[-1,1])for(const dz of[-1,1])add(cx+dx*(w/2*c+d/2*s),cz+dz*(d/2*c+w/2*s),q);add(cx,cz,q)}
-  for(const a of D.b){const pts=[];for(let i=2;i<a.length;i+=2)pts.push([a[i]/10,a[i+1]/10]);const q={t:1,pts};let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of pts){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1])}
+  for(const a of D.b){if(CITY.BADB.has(a))continue;const pts=[];for(let i=2;i<a.length;i+=2)pts.push([a[i]/10,a[i+1]/10]);const q={t:1,pts};let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of pts){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1])}
    for(let x=Math.floor(x0/GC)*GC;x<=x1;x+=GC)for(let z=Math.floor(z0/GC)*GC;z<=z1;z+=GC)add(x+1,z+1,q)}
   for(let i=0;i<N;i++){const x=tv.getInt16(i*5,true)/10,z=tv.getInt16(i*5+2,true)/10;add(x,z,{t:2,x,z,r:.55})}
   for(const w of C.WALLS){const q={t:3,a:[w[0],w[1]],b:[w[2],w[3]]},L=Math.hypot(w[2]-w[0],w[3]-w[1]),n=Math.ceil(L/10);for(let k=0;k<=n;k++)add(w[0]+(w[2]-w[0])*k/n,w[1]+(w[3]-w[1])*k/n,q)}
