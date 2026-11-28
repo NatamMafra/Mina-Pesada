@@ -212,7 +212,20 @@ const CITY=(()=>{const D=ILH,[GX0,GZ0,GCS,GNX,GNZ]=D.g,b64=s=>Uint8Array.from(at
   const H0=VH.slice();
   const bd=new Float32Array(MNX*MNZ).fill(1e9),by=new Float32Array(MNX*MNZ);for(const k in D.ry){const a=D.r[+k];if(a[1])continue;const ry=D.ry[k];segs(a,1.5,(x,z,n,t)=>{const y=(ry[n]+((ry[n+1]??ry[n])-ry[n])*t)/10-.3;near(x,z,24,(v,d)=>{if(d<bd[v]){bd[v]=d;by[v]=y}})})}
   for(let v=0;v<VH.length;v++){if(prot[v]||bd[v]>23||by[v]<.2)continue;const e=by[v]-Math.max(0,bd[v]-9)*.7;if(e>VH[v])VH[v]=e}
-  for(const ri in(EDT.ruas||{})){const a=D.r[+ri],ry=D.ry[ri];if(!a||!ry)continue;segs(a,1.5,(x,z,n,t)=>{const y=(ry[n]+((ry[n+1]??ry[n])-ry[n])*t)/10-.3;near(x,z,24,(v,d)=>{const lim=y+Math.max(0,d-7)*.75;if(VH[v]>lim)VH[v]=lim;const fl=y-Math.max(0,d-7)*.7;if(d<9&&VH[v]<fl)VH[v]=fl})})}}
+  for(const ri in(EDT.ruas||{})){const a=D.r[+ri],ry=D.ry[ri];if(!a||!ry)continue;segs(a,1.5,(x,z,n,t)=>{const y=(ry[n]+((ry[n+1]??ry[n])-ry[n])*t)/10-.3;near(x,z,24,(v,d)=>{const lim=y+Math.max(0,d-7)*.75;if(VH[v]>lim)VH[v]=lim;const fl=y-Math.max(0,d-7)*.7;if(d<9&&VH[v]<fl)VH[v]=fl})})}
+  // ---- nivelamento das ruas: perfil suave ao longo de cada rua, terreno em volta acompanha ----
+  {const RWg=[9.5,7.5,6.5,4.2,3.6],inMine=(x,z)=>x>-90&&x<250&&z>-90&&z<90,lock=new Uint8Array(MNX*MNZ);
+   const order=D.r.map((a,ri)=>ri).filter(ri=>!D.ry[ri]&&D.r[ri].length>=6).sort((p,q)=>D.r[p][0]-D.r[q][0]||(q-p));
+   for(let pass=0;pass<6;pass++)for(const ri of order){const a=D.r[ri],P=[];segs(a,2.5,(x,z)=>{const l=P[P.length-1];if(!l||Math.hypot(x-l[0],z-l[1])>.3)P.push([x,z])});if(P.length<3)continue;
+    const raw=P.map(p=>meshH(p[0],p[1])),y=raw.slice(),n=y.length,W=RWg[a[0]]||6;
+    // passa-baixa (janela ~50 m) várias vezes + limite de rampa
+    const R=10;for(let it=0;it<5;it++){const o=y.slice();for(let i=0;i<n;i++){let sm=0,c=0;for(let k=-R;k<=R;k++){const j=i+k;if(j>=0&&j<n){const w=R+1-Math.abs(k);sm+=o[j]*w;c+=w}}y[i]=sm/c}}
+    // pontas presas ao que já existe (cruzamentos, rampas da ponte, mina)
+    const fix=(i0,dir)=>{const d0=raw[i0]-y[i0];for(let i=0;i<Math.min(n,16);i++){const j=i0+dir*i;if(j<0||j>=n)break;y[j]+=d0*(1-i/16)}};fix(0,1);fix(n-1,-1);
+    for(let i=0;i<n;i++)if(inMine(P[i][0],P[i][1]))y[i]=raw[i];
+    for(let i=1;i<n;i++){const g=2.5*.13;if(y[i]-y[i-1]>g)y[i]=y[i-1]+g;if(y[i-1]-y[i]>g)y[i]=y[i-1]-g}
+    const best=new Map();for(let i=0;i<n;i++){const [x,z]=P[i];if(inMine(x,z))continue;near(x,z,W/2+16,(v,d)=>{const b=best.get(v);if(!b||d<b[0])best.set(v,[d,y[i]])})}
+    const full=Math.max(W/2+3,7.6);for(const [v,[d,yy]] of best){if(lock[v]&&pass===0)continue;const w=d<=full?1:d<full+10?.5*(1+Math.cos(Math.PI*(d-full)/10)):0;if(!w)continue;VH[v]+=(yy-VH[v])*w;if(w>.99)lock[v]=1}}}}
  const deckRaw=(x,z)=>{if(!DK.size)return -99;const kx=Math.floor(x/10),kz=Math.floor(z/10);let bd=24.5,by=-99;for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const a=DK.get((kx+dx)+','+(kz+dz));if(a)for(const p of a){const d=(p[0]-x)**2+(p[1]-z)**2;if(d<bd){bd=d;by=p[2]}}}return by>.3?by+.13:-99};
  const C0={refY:undefined};
  const deck=(x,z)=>{const y=deckRaw(x,z);if(y<-50)return y;if(C0.refY!==undefined&&C0.refY<y-2.5)return -99;return y};
@@ -287,7 +300,7 @@ CITY.build=function(){const D=ILH,C=CITY,TS=400,tiles=new Map(),T0=performance.n
  const IND=[0xb8bec4,0x9aa3a8,0xc9c4b4].map(LIN),FLAT=LIN(0x77736b),GLS=LIN(0x3e5566),DOOR=LIN(0x5b4030);
  D.b.forEach((a,bi)=>{const kind=a[0],hh=a[1]/10,pts=[];for(let i=2;i<a.length;i+=2)pts.push([a[i]/10,a[i+1]/10]);if(pts.length<3)return;
   let ar=0;for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];ar+=p[0]*q[1]-q[0]*p[1]}if(ar<0)pts.reverse();
-  let y0=1e9,cx=0,cz=0;for(const p of pts){y0=Math.min(y0,C.h(p[0],p[1]));cx+=p[0];cz+=p[1]}cx/=pts.length;cz/=pts.length;y0-=.4;const y1=y0+.4+hh;
+  let y0=1e9,cx=0,cz=0;for(const p of pts){y0=Math.min(y0,C.meshH(p[0],p[1]));cx+=p[0];cz+=p[1]}cx/=pts.length;cz/=pts.length;y0-=.4;const y1=y0+.4+hh;
   const B=buf(tileOf(cx,cz),'bld'),wc=kind===1?IND[bi%3]:kind===2?LIN(0xf4f2ea):WALL[bi%WALL.length];
   for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];quad(B,[q[0],y0,q[1]],[p[0],y0,p[1]],[p[0],y1,p[1]],[q[0],y1,q[1]],wc);
    // faixa de janelas
@@ -301,7 +314,7 @@ CITY.build=function(){const D=ILH,C=CITY,TS=400,tiles=new Map(),T0=performance.n
  const HS=b64u(D.hs),dv=new DataView(HS.buffer);
  for(let o=0,hi=0;o+8<=HS.length;o+=8,hi++){const cx=dv.getInt16(o,true)/10,cz=dv.getInt16(o+2,true)/10,ang=HS[o+4]/256*Math.PI*2,w=HS[o+5]/10,d=HS[o+6]/10,f=HS[o+7],fl=(f&1)+1,col=(f>>1)&7,big=(f>>4)&1;
   const s=Math.sin(ang),c=Math.cos(ang),W=(lx,ly,lz)=>[cx+lx*c+lz*s,ly,cz-lx*s+lz*c];
-  let y0=1e9;for(const[lx,lz]of[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]]){const p=W(lx,0,lz);y0=Math.min(y0,C.h(p[0],p[2]))}y0-=.35;
+  let y0=1e9;for(const[lx,lz]of[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]]){const p=W(lx,0,lz);y0=Math.min(y0,C.meshH(p[0],p[2]))}y0-=.35;
   const wh=big?6.2:fl===2?5.7:2.9,y1=y0+.35+wh,B=buf(tileOf(cx,cz),'bld'),wc=WALL[(col+hi)%WALL.length],rc=ROOF[(hi*7+col)%4],hw=w/2,hd=d/2;
   const box4=(x0,x1,z0,z1,ya,yb,cl)=>{quad(B,W(x1,ya,z1),W(x0,ya,z1),W(x0,yb,z1),W(x1,yb,z1),cl);quad(B,W(x0,ya,z0),W(x1,ya,z0),W(x1,yb,z0),W(x0,yb,z0),cl);quad(B,W(x0,ya,z1),W(x0,ya,z0),W(x0,yb,z0),W(x0,yb,z1),cl);quad(B,W(x1,ya,z0),W(x1,ya,z1),W(x1,yb,z1),W(x1,yb,z0),cl)};
   box4(-hw,hw,-hd,hd,y0,y1,wc);
@@ -2598,6 +2611,7 @@ const ED=(()=>{const HASH='57d8cd3d7376973bf91a5ff807adfa49d16dc490ec6f8a5800800
 FX.menuAdd('🛠️ Editor de mapa',()=>ED.open());
 {let r=null;try{r=JSON.parse(sessionStorage.getItem('mp_edre')||'null');sessionStorage.removeItem('mp_edre')}catch(e){}if(r)setTimeout(()=>{ED.reopen(r)},400)}
 
+window.__ILH=ILH;
 window.__FX={ED,PORT,DN,applyTime:k=>applyTime(k),cam:m=>{camMode=m},FX,ctDef,MIS,get CTS(){return CTS},TUT,PUMPS,select:i=>select(i)};
 window.__OFI={OFI,suspApply,ofiApply,setRims,paintSet,buildOfi,ofiP,ofiB};window.__G={conts,spawnHeld,partsArr:parts,MIS,CITY,MTN,optUpdate,OPT,spotStart,excPos,excFace,circles,spotG,blockers,NAV:typeof NAV!=="undefined"?NAV:null,follow,updW,planMan,dubins,dubSample,wkHit,wkObs,wkTer,hullPts:typeof hullPts!=="undefined"?hullPts:null,inBox:typeof inBox!=="undefined"?inBox:null,WK,wkStart,wkStop,bedInfo,findPile,setAssist:b=>{ASSIST=b},assistStep,DX,navPath,aiDrive,modT,CFG,applyQuality,applyTime,place:(v,x,z,yaw)=>{v.x=x;v.z=z;v.yaw=yaw;v.speed=0;v.steer=0;updVeh(v,0,ZERO,true)},updVeh,renderer,scene,vehicles,conts,parts,J1,J2,BT,select,setMode,loop,getH,penetration,inp,spawnHeld,get cur(){return cur},get camMode(){return camMode},camera,camBtn};
 })();
