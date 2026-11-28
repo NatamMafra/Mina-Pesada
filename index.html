@@ -48,8 +48,8 @@ canvas{display:block}
  <p>Protótipo de simulador: retroescavadeira, pá carregadeira, caminhão caçamba e cavalo mecânico com carreta basculante.</p>
  <p><b>Máquinas:</b> joystick esquerdo dirige, direito comanda braço e concha · <b>Retro:</b> escolha Pá frontal ou Retro traseira · <b>Caminhões:</b> direção à esquerda, acelerar e ré/freio à direita · <b>Arraste a tela</b>: câmera · <b>Pinça</b>: zoom</p>
  <p>Cave no fosso ou nas pilhas de areia, pedra e minério, carregue os caminhões e descarregue na plataforma.</p>
- <p>⌨️ <b>No PC:</b> W A S D ou setas dirigem · I K braço · J L concha · Q E báscula · H buzina · C câmera · arraste o mouse para olhar · rodinha dá zoom.</p>
-<p>🆕 <b>Novo:</b> contratos com entregas em Ilhota · peso e m³ na tela · diesel (Posto DEDA ao lado da cava, picape abastece máquinas) · carreta prancha · Porto de Areia depois da ponte · dia e noite (⚙️) · câmera de cabine · Oficina DEDA.</p>
+ <p>⌨️ <b>No PC:</b> W A S D ou setas dirigem · I K braço · J L concha · Q E báscula · H buzina · V engata/desengata carreta · F farol · Z/X setas · C câmera · arraste o mouse para olhar · rodinha dá zoom.</p>
+<p>🆕 <b>Novo:</b> contratos com entregas em Ilhota · peso e m³ na tela · diesel (Posto DEDA ao lado da cava, picape abastece máquinas) · carreta prancha · Porto de Areia depois da ponte · dia e noite (⚙️) · câmera de cabine · Oficina DEDA · <b>fretes com carreta</b> (missões: engate com V, carregue e entregue) · cavalos FH-540/FH-460, baú, sider, graneleira e tanque · <b>painel 🎛️</b>: câmbio manual (T, Shift/Ctrl), limitador de velocidade (N), faróis (F), setas (Z/X), pisca-alerta (B), diferencial (G) · <b>chuva e lama</b>: 12 tipos de solo, pneus na Oficina e reboque de socorro.</p>
 <p>Mineração <b>DEDA Terraplanagem</b> em Ilhota/SC, entre o Centro e a Ilhotinha.</p>
  <button id="go">▶ JOGAR</button>
  <p style="font-size:10px;opacity:.7;margin-top:10px">Ruas, rio e prédios de Ilhota: © OpenStreetMap contributors (ODbL). Casas complementares geradas.</p>
@@ -1168,22 +1168,25 @@ function hullPts(h){if(h.pts)return h.pts;const p=[],sz=new THREE.Vector3().subV
  for(let i=0;i<n[0];i++)for(let j=0;j<n[1];j++)for(let k=0;k<n[2];k++)p.push(new THREE.Vector3(h.min.x+sz.x*i/(n[0]-1),h.min.y+sz.y*j/(n[1]-1),h.min.z+sz.z*k/(n[2]-1)));return h.pts=p}
 const HP=new THREE.Vector3(),HQ=new THREE.Vector3();
 const inBox=(h,p,m)=>p.x>h.min.x-m&&p.x<h.max.x+m&&p.y>h.min.y-m&&p.y<h.max.y+m&&p.z>h.min.z-m&&p.z<h.max.z+m;
-function penetration(v){let n=0;const oth=[];if(v.carried)return 0;for(const o of vehicles)if(o!==v&&!o.carried&&Math.hypot(o.x-v.x,o.z-v.z)<30)for(const h of o.hull){h.inv.copy(h.obj.matrixWorld).invert();oth.push(h)}
+function penetration(v){let n=0;const oth=[];if(v.carried)return 0;for(const o of vehicles)if(o!==v&&!o.carried&&o.hp!==v&&v.hp!==o&&Math.hypot(o.x-v.x,o.z-v.z)<30)for(const h of o.hull){h.inv.copy(h.obj.matrixWorld).invert();oth.push(h)}
  if(!oth.length)return 0;
  for(const h of v.hull){h.inv.copy(h.obj.matrixWorld).invert();for(const p of hullPts(h)){HP.copy(p).applyMatrix4(h.obj.matrixWorld);for(const o of oth){HQ.copy(HP).applyMatrix4(o.inv);if(inBox(o,HQ,.06))n++}}}
  for(const o of oth)for(const p of hullPts(o)){HP.copy(p).applyMatrix4(o.obj.matrixWorld);for(const h of v.hull){HQ.copy(HP).applyMatrix4(h.inv);if(inBox(h,HQ,.06))n++}}
  return n}
 function circles(v){const c=Math.cos(v.yaw),s=Math.sin(v.yaw);const o=v.cfg.circ.map(([z,r])=>[v.x+z*s,v.z+z*c,r]);return v.extraCirc?o.concat(v.extraCirc()):o}
-function updVeh(v,dt,inp,init){CITY.C0.refY=init?undefined:v.root.position.y;const c=v.cfg;let a=0;const thr=v.dry?0:inp.y,wf=v.wf||1;
- if(Math.abs(thr)>.05){if(v.speed*thr<-.01)a=thr*c.brake*Math.sqrt(wf);else a=thr*c.acc*wf*(1-Math.abs(v.speed)/c.maxV*.6);a-=9.8*Math.sin(-(v.root.rotation.x-(v.susp?v.susp.pa:0)))*(c.track?.12:.4)}
+function updVeh(v,dt,inp,init){if(v.kind==='trailer')return[0,0];CITY.C0.refY=init?undefined:v.root.position.y;const c=v.cfg;let a=0;const thr=v.dry?0:inp.y,wf=v.wf||1;
+ const PT=window.__PT?window.__PT(v,thr,dt):null,VM=PT?PT.vm:c.maxV;
+ if(Math.abs(thr)>.05){if(v.speed*thr<-.01)a=thr*c.brake*Math.sqrt(wf)*(PT?PT.br:1);else a=thr*c.acc*wf*(PT?PT.am:1)*(1-Math.abs(v.speed)/c.maxV*.6)*(PT?clamp((VM-Math.abs(v.speed))/(VM*.1+.01),0,1):1);a-=9.8*Math.sin(-(v.root.rotation.x-(v.susp?v.susp.pa:0)))*(c.track?.12:.4)}
  else{v.speed*=Math.max(0,1-dt*2.5*(.5+.5*wf));if(Math.abs(v.speed)<.4)v.speed=0}
- v.speed=clamp(v.speed+a*dt,-c.maxV*.35,c.maxV);if(Math.abs(thr)<.05&&Math.abs(v.speed)<.15)v.speed=0;
+ if(PT&&PT.dr&&Math.abs(v.speed)>.02)a-=Math.sign(v.speed)*PT.dr;
+ v.speed=clamp(v.speed+a*dt,-c.maxV*.35,c.maxV);if(PT&&v.speed>VM)v.speed=Math.max(VM,v.speed-6*dt);if(Math.abs(thr)<.05&&Math.abs(v.speed)<.15)v.speed=0;
  if(c.track){v.turn=v.turn||0;v.turn+=(-inp.x*c.turn-v.turn)*Math.min(1,dt*4);v.yaw+=v.turn*dt}
- else{v.steer+=(-inp.x*c.steerMax-v.steer)*Math.min(1,dt*3*(.55+.45*wf));v.yaw+=v.speed/c.wb*Math.tan(v.steer)*dt/(1+(1-wf)*Math.abs(v.speed)/c.maxV*1.2)}
+ else{v.steer+=(-inp.x*c.steerMax-v.steer)*Math.min(1,dt*3*(.55+.45*wf));let yr=v.speed/c.wb*Math.tan(v.steer)/(1+(1-wf)*Math.abs(v.speed)/c.maxV*1.2);
+  if(PT&&Math.abs(v.speed)>2){const lim=PT.lg/Math.abs(v.speed);if(Math.abs(yr)>lim){const us=Math.min(1,Math.abs(yr)/lim-1);yr=Math.sign(yr)*lim;if(dt>0)v.speed*=1-dt*.18*us}}v.yaw+=yr*dt}
  v.x=clamp(v.x+Math.sin(v.yaw)*v.speed*dt,CITY.EX0+40,CITY.EX1-40);v.z=clamp(v.z+Math.cos(v.yaw)*v.speed*dt,CITY.EZ0+40,CITY.EZ1-40);
  const co=Math.cos(v.yaw),si=Math.sin(v.yaw),P=(lx,lz)=>getH(v.x+lx*co+lz*si,v.z-lx*si+lz*co);
  const fl=P(c.hw,c.lf),fr=P(-c.hw,c.lf),rl=P(c.hw,-c.lr),rr=P(-c.hw,-c.lr);
- v.root.position.set(v.x,(fl+fr+rl+rr)/4,v.z);
+ v.root.position.set(v.x,(fl+fr+rl+rr)/4-(PT&&PT.sk||0),v.z);
  v.root.rotation.set(-Math.atan2((fl+fr)/2-(rl+rr)/2,c.lf+c.lr),v.yaw,Math.atan2((fl+rl)/2-(fr+rr)/2,c.hw*2));if(v.susp){v.root.position.y+=v.susp.y;v.root.rotation.x+=v.susp.pa}
  for(const w of v.wheels)w.s.rotation.x+=v.speed*dt/w.r;if(v.tracks&&dt>0)for(const t of v.tracks)updTrack(t,(v.speed-Math.sign(t.x)*(v.turn||0)*Math.abs(t.x))*dt);for(const g of v.steerW)g.rotation.y=v.steer*(g.userData.sf||1);
  let act=0,relief=0;
@@ -1527,7 +1530,7 @@ function updAmb(dt,v){if(!AC)return;initAmb();const d=polyD(v.x,-v.z,HWY);AU.amb
 function sett(p,v){p.setTargetAtTime(v,AC.currentTime,.05)}
 // câmbio de 5 marchas: o giro sobe dentro da marcha e cai na troca
 const GEAR_HI=[.15,.31,.5,.72,1.02];
-function gearRpm(v,dt,thr,act){const s=Math.abs(v.speed)/v.cfg.maxV;v.gear=v.gear||1;v.shT=Math.max(0,(v.shT||0)-dt);
+function gearRpm(v,dt,thr,act){if(v.man&&window.__MG)return window.__MG(v,dt,thr,act);const s=Math.abs(v.speed)/v.cfg.maxV;v.gear=v.gear||1;v.shT=Math.max(0,(v.shT||0)-dt);
  if(v.speed<-.3){v.gear=1;v.gearR=true;return{r:.2+.62*clamp(s/.4,0,1)+Math.abs(thr)*.12,g:'R'}}v.gearR=false;
  if(v.gear<5&&s>GEAR_HI[v.gear-1]&&thr>.05){v.gear++;v.shT=.28;if(v.cfg.snd.turbo>.3)burst(3200,.7,.22,.035,'highpass')}
  else if(v.gear>1&&s<(v.gear>1?GEAR_HI[v.gear-2]:0)*.82){v.gear--;v.shT=.15}
@@ -1964,7 +1967,7 @@ const topBar=$("top");const vbtn=[];
 ['Retro','Pá carreg.','Caçamba','Carreta','Escavadeira','Trator'].forEach((n,i)=>vehicles[i].short=n);
 const vehP=document.createElement('div');vehP.id='vehp';vehP.className='panel';document.body.appendChild(vehP);
 const vehB=document.createElement('button');vehB.className='btn on';topBar.appendChild(vehB);vehB.onpointerdown=e=>{e.stopPropagation();const on=vehP.style.display!=='block';closePanels();vehP.style.display=on?'block':'none';if(on)buildVeh()};
-function buildVeh(){vehP.innerHTML='<div class="ttl">Escolha o veículo</div>';const g=document.createElement('div');g.className='grid';vehicles.forEach((o,i)=>{const b=document.createElement('button');b.className='btn'+(i===cur?' on':'');b.textContent=o.short+(o.wk?' 👷':o.ai?' 📣':'');b.onpointerdown=e=>{e.stopPropagation();select(i);vehP.style.display='none'};g.appendChild(b)});vehP.appendChild(g)}
+function buildVeh(){vehP.innerHTML='<div class="ttl">Escolha o veículo</div>';const g=document.createElement('div');g.className='grid';vehicles.forEach((o,i)=>{if(o.kind==='trailer')return;const b=document.createElement('button');b.className='btn'+(i===cur?' on':'');b.textContent=o.short+(o.wk?' 👷':o.ai?' 📣':'');b.onpointerdown=e=>{e.stopPropagation();select(i);vehP.style.display='none'};g.appendChild(b)});vehP.appendChild(g)}
 function closePanels(){for(const id of['vehp','call','cfg','work','misP','ofip','menuP','ctP','edP'])if($(id))$(id).style.display='none'}
 const mk=(t,f)=>{const b=document.createElement('button');b.className='btn';b.textContent=t;topBar.appendChild(b);if(f)b.onpointerdown=e=>{e.stopPropagation();f(b)};return b};
 const CAMN={0:'Externa',1:'Cabine',2:'Cabine',3:'Lateral esq.',4:'Lateral dir.'};
@@ -2097,7 +2100,7 @@ const MIS=(()=>{
    const b=document.createElement('button');b.className='btn on';b.textContent=A&&A.d===d?'Reiniciar':'Jogar';b.onpointerdown=e=>{e.stopPropagation();start(d)};r.appendChild(b);P.appendChild(r)});
   if(A){const b=document.createElement('button');b.className='btn';b.textContent='Sair da missão (modo livre)';b.onpointerdown=e=>{e.stopPropagation();quit();P.style.display='none'};P.appendChild(b)}}
  function start(d){quit(true);closePanels();P.style.display='none';RZ.style.display='none';if(WK.on)wkStop();if(spotG)spotG.visible=false;
-  if(!d.noReset)vehicles.forEach((v,i)=>{if(!v.carried)putV(v,START[i][0],START[i][1],START[i][2])});
+  if(!d.noReset)vehicles.forEach((v,i)=>{if(!v.carried&&START[i])putV(v,START[i][0],START[i][1],START[i][2])});
   A={d,S:{t:0,prog:0,info:''}};d.setup(A.S);select(d.veh);H.style.display='block';render()}
  function quit(silent){if(!A)return;A=null;W.style.display='none';expT=0;clearMarks();cones=[];H.style.display='none';CITY.TGT=null;KEEPZ=null;for(let i=parts.length-1;i>=0;i--)if(parts[i].keep&&!parts[i].held){parts[i]=parts[parts.length-1];parts.pop()}}
  function render(){if(!A)return;const S=A.S,d=A.d,left=d.lim-S.t,pr=Math.round(clamp(S.prog,0,1)*100),v=vehicles[cur],T=CITY.TGT,dist=T?Math.round(Math.hypot(v.x-T.x,v.z-T.z)):0;
@@ -2178,9 +2181,9 @@ function loop(t){if(!window.__manual){requestAnimationFrame(loop);if(CFG.fps===3
  // colisões simples com objetos fixos
  for(const v of vehicles){if(v.carried||(v!==va&&!v.ai&&!v.wk))continue;const mine=circles(v).slice(0,v.cfg.circ.length);let px=0,pz=0;
   for(const a of mine)for(const b of blockers){const dx=a[0]-b.x,dz=a[1]-b.z,d=Math.hypot(dx,dz),m=a[2]+b.r;if(d<m&&d>1e-3){px+=dx/d*(m-d);pz+=dz/d*(m-d)}}
-  if(CITY.push){const q=CITY.push(mine);px+=q[0];pz+=q[1]}
+  if(CITY.push){CITY.C0.refY=v.root.position.y;const q=CITY.push(mine);px+=q[0];pz+=q[1]}
   if(px||pz){const pl=Math.hypot(px,pz);if(pl>.3){px*=.3/pl;pz*=.3/pl}const pb=v===va?0:(updW(v),penetration(v));v.x+=px;v.z+=pz;if(v!==va){updVeh(v,0,ZERO);updW(v);if(penetration(v)>pb){v.x-=px;v.z-=pz;updVeh(v,0,ZERO);updW(v)}}if(v===va&&Math.abs(v.speed)>3)clank(.3);v.speed*=.3}}
- const v=va;
+ CITY.C0.refY=va.root.position.y;const v=va;
  scene.updateMatrixWorld();updRams();updConts(dt);updParts(dt);
  if(time>tNext){let any=0;for(const c of CH)if(c.dirty){c.geo.computeVertexNormals();c.dirty=false;any=1}if(any)tNext=time+.15}
  for(const o of vehicles)for(const b of o.beacons)b.material.emissiveIntensity=o===v?(Math.sin(time*9)>0?2.2:.3):.2;
@@ -2320,7 +2323,7 @@ FX.hooks.push(dt=>{if(toastT>0&&(toastT-=dt)<=0)toast.style.display='none'});
 // ---------- peso e volume ----------
 let wT=0;function weigh(){for(const v of vehicles){v.bedV=v.bedT=v.bkV=v.bkT=0}
  for(const c of conts){const v=c.v;if(!v)continue;let t=0;for(const p of c.held)t+=DENS[p.type]||1.6;const vol=c.held.length*PVOL;t*=PVOL;if(c.dig){v.bkV+=vol;v.bkT+=t}else{v.bedV+=vol;v.bedT+=t}}
- for(const v of vehicles){let L=v.bedT+v.bkT;if(v.cargoV)for(const o of v.cargoV)L+=m0Of(o)+(o.bedT||0);v.loadT=L;v.wf=m0Of(v)/(m0Of(v)+L)}}
+ for(const v of vehicles){let L=v.bedT+v.bkT;if(v.trl)L+=m0Of(v.trl)+(v.trl.cargoT||0);if(v.cargoV)for(const o of v.cargoV)L+=m0Of(o)+(o.bedT||0);v.loadT=L;v.wf=m0Of(v)/(m0Of(v)+L)}}
 FX.hooks.push(dt=>{if((wT-=dt)<=0){wT=.25;weigh()}});
 // ---------- diesel ----------
 let FUEL={};try{FUEL=JSON.parse(localStorage.getItem('mp_fuel')||'{}')||{}}catch(e){}
@@ -2431,9 +2434,9 @@ const DN=(()=>{const KEY=[[0,'n'],[4.8,'n'],[6,'dk'],[7.3,'m'],[10,'d'],[15.5,'d
   return{o:{sun:A.sun.map((x,j)=>x+(B.sun[j]-x)*f),col:lc(A.col,B.col,f),int:A.int+(B.int-A.int)*f,hs:lc(A.hs,B.hs,f),hg:lc(A.hg,B.hg,f),hi:A.hi+(B.hi-A.hi)*f,sky:A.sky.map((c,j)=>ls(c,B.sky[j],f)),fog:lc(A.fog,B.fog,f)},n:(k0==='n'?1:k0==='dk'?.45:0)*(1-f)+(k1==='n'?1:k1==='dk'?.45:0)*f}}
  function apply(){const r=CFG.t==='c'?mix():{o:TOD[CFG.t]||TOD.d,n:CFG.t==='n'?1:0};TOD.x=r.o;night=r.n;applyTime('x')}
  FX.hooks.push((dt,v)=>{if(CFG.t==='c'){h=(h+dt/60)%24;CFG.h=h;if((acc-=dt)<=0){acc=1.5;apply()}}
-  const on=night>.4;stars.material.opacity=Math.max(0,night-.3)*1.2;stars.position.copy(camera.position);moon.material.opacity=night;moon.position.copy(camera.position).add(SUNOFF.clone().normalize().multiplyScalar(1500));moon.visible=night>.05;
+  const on=!!(v&&v.lt>0);stars.material.opacity=Math.max(0,night-.3)*1.2;stars.position.copy(camera.position);moon.material.opacity=night;moon.position.copy(camera.position).add(SUNOFF.clone().normalize().multiplyScalar(1500));moon.visible=night>.05;
   for(const m of lampM)m.emissiveIntensity=.6+night*2.4;
-  head.intensity=on?6*night:0;if(on&&v){const c=v.cfg,co=Math.cos(v.yaw),si=Math.sin(v.yaw),fz=(c.lf||2)+1.2;head.position.set(v.x+si*fz,v.root.position.y+1.6,v.z+co*fz);head.target.position.set(v.x+si*(fz+25),v.root.position.y-1,v.z+co*(fz+25))}});
+  head.intensity=on?(v.lt===2?10:6):0;head.distance=on&&v.lt===2?120:70;if(on&&v){const c=v.cfg,co=Math.cos(v.yaw),si=Math.sin(v.yaw),fz=(c.lf||2)+1.2;head.position.set(v.x+si*fz,v.root.position.y+1.6,v.z+co*fz);head.target.position.set(v.x+si*(fz+25),v.root.position.y-1,v.z+co*(fz+25))}});
  return{apply,get h(){return h},set h(x){h=x},get night(){return night}}})();
 window.__DN=DN;if(CFG.t==='c'||CFG.t==='n')DN.apply();
 // ================= INTERIORES DAS CABINES =================
@@ -2508,6 +2511,307 @@ if(CITY.LM&&!CITY.LM.some(m=>m.t==='port'))CITY.LM.push({x:PORT.C.x,z:PORT.C.z,n
   const b=document.createElement('button');b.className='btn on';b.textContent='Fechar';b.onpointerdown=e=>{e.stopPropagation();P.style.display='none'};P.appendChild(b)}
  B.onpointerdown=e=>{e.stopPropagation();closePanels();P.style.display='block';build()};
  setInterval(()=>{const v=vehicles[cur];B.style.display=v===PV&&Math.abs(v.speed)<.4&&P.style.display!=='block'&&!window.__edOn?'block':'none';if(v!==PV)P.style.display='none'},300)}
+
+// ================= FÍSICA ESTILO SNOWRUNNER + CÂMBIO + LUZES =================
+// ---------- tipos de chão ----------
+const SF={
+ asf:{nm:'asfalto',mu:1,rr:.012,sk:0,soft:0},
+ terraB:{nm:'terra batida',mu:.74,rr:.04,sk:.012,soft:.35},
+ brita:{nm:'cascalho',mu:.8,rr:.035,sk:.008,soft:.2},
+ terra:{nm:'terra',mu:.7,rr:.05,sk:.03,soft:.6},
+ areia:{nm:'areia solta',mu:.55,rr:.085,sk:.07,soft:1},
+ pedra:{nm:'pedra',mu:.84,rr:.04,sk:0,soft:0},
+ minerio:{nm:'minério',mu:.8,rr:.042,sk:0,soft:.05},
+ solo:{nm:'solo',mu:.68,rr:.055,sk:.032,soft:.65},
+ organico:{nm:'solo orgânico',mu:.5,rr:.08,sk:.08,soft:1},
+ argila:{nm:'argila',mu:.62,rr:.062,sk:.045,soft:.9,wet:2.2},
+ grama:{nm:'grama',mu:.64,rr:.055,sk:.022,soft:.45},
+ mata:{nm:'mato',mu:.56,rr:.07,sk:.035,soft:.7}};
+const MSF=[SF.terra,SF.areia,SF.pedra,SF.minerio,SF.solo,SF.brita,SF.solo,SF.organico,SF.argila];
+// raster das ruas (1 = asfalto, 2 = estrada de chão)
+const RDG=(()=>{const X0=CITY.EX0,Z0=CITY.EZ0,CS=3,NX=Math.ceil((CITY.EX1-X0)/CS)+1,NZ=Math.ceil((CITY.EZ1-Z0)/CS)+1,g=new Uint8Array(NX*NZ),W=[9.5,7.5,6.5,4.2,3.6];
+ for(const a of ILH.r){const cl=a[0],w=(W[cl]||4)/2+1,val=cl>=4?2:1;for(let i=2;i+3<a.length;i+=2){const x0=a[i]/10,z0=a[i+1]/10,x1=a[i+2]/10,z1=a[i+3]/10,n=Math.max(1,Math.ceil(Math.hypot(x1-x0,z1-z0)/1.5));
+  for(let k=0;k<=n;k++){const x=x0+(x1-x0)*k/n,z=z0+(z1-z0)*k/n;for(let dx=-w;dx<=w;dx+=2)for(let dz=-w;dz<=w;dz+=2){if(dx*dx+dz*dz>w*w+1)continue;const ix=Math.floor((x+dx-X0)/CS),iz=Math.floor((z+dz-Z0)/CS);if(ix<0||iz<0||ix>=NX||iz>=NZ)continue;const q=iz*NX+ix;if(!g[q]||val<g[q])g[q]=val}}}}
+ return{g,X0,Z0,CS,NX,NZ}})();
+function surfAt(x,z){
+ if(x>=-80&&x<=240&&z>=-80&&z<=80){const m=matAt(x,z);return m>=0?MSF[m]||SF.terra:SF.terra}
+ if(window.__PORTM){const m=__PORTM(x,z);if(m!==undefined)return m>=0?MSF[m]||SF.areia:SF.areia}
+ const ix=Math.floor((x-RDG.X0)/RDG.CS),iz=Math.floor((z-RDG.Z0)/RDG.CS);if(ix>=0&&iz>=0&&ix<RDG.NX&&iz<RDG.NZ){const r=RDG.g[iz*RDG.NX+ix];if(r===1)return SF.asf;if(r===2)return SF.terraB}
+ const w=CITY.matW(x,z);let b=0;for(let i=1;i<4;i++)if(w[i]>w[b])b=i;return b===2?SF.terra:b===1||b===3?SF.mata:SF.grama}
+// ---------- clima ----------
+const WX={wet:0,rain:false};
+FX.hooks.push(dt=>{WX.wet=clamp(WX.wet+(WX.rain?dt*.02:-dt*.003),0,1)});
+const rainL=(()=>{const N=520,g=new THREE.BufferGeometry(),p=new Float32Array(N*6);for(let i=0;i<N;i++){const x=(Math.random()-.5)*60,y=Math.random()*30,z=(Math.random()-.5)*60;p.set([x,y,z,x-.15,y+1.1,z-.05],i*6)}
+ g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xaab8cc,transparent:true,opacity:.42,depthWrite:false}));m.frustumCulled=false;m.visible=false;scene.add(m);return m})();
+FX.hooks.push(dt=>{rainL.visible=WX.rain;if(!WX.rain)return;const P=rainL.geometry.attributes.position.array;for(let i=0;i<520;i++){let y=P[i*6+1]-dt*30;if(y<0){y+=30}const d=y-P[i*6+1];P[i*6+1]=y;P[i*6+4]+=d}rainL.geometry.attributes.position.needsUpdate=true;rainL.position.set(camera.position.x,camera.position.y-8,camera.position.z)});
+// ---------- pneus ----------
+const TYR={e:{nm:'Estrada',h:1.1,s:.78,rs:1.22},m:{nm:'Misto',h:1,s:1,rs:1},l:{nm:'Lama',h:.88,s:1.32,rs:.78}};
+let TYS={};try{TYS=JSON.parse(localStorage.getItem('mp_tyre')||'{}')||{}}catch(e){}
+for(const v of vehicles)v.tyre=TYS[v.name]||'m';
+// ---------- câmbio ----------
+const roadV=v=>!v.cfg.track&&(v.kind==='truck'||v.kind==='car'||v.kind==='loader'||v.kind==='retro');
+const gearFrac=(v,g)=>{const n=v.gn||6;return .15+.85*Math.pow((g-1)/(n-1),1.12)};
+for(const v of vehicles){v.mg=1;v.man=false;v.gn=v.kind==='car'?5:6;v.diff=false;v.mud=0;v.lt=0}
+window.__MG=(v,dt,thr,act)=>{const top=v.cfg.maxV*gearFrac(v,v.mg),rpm=clamp(Math.abs(v.speed)/top,0,1);v.gear=v.mg;v.shT=Math.max(0,(v.shT||0)-dt);
+ if(v.speed<-.3){v.gearR=true;return{r:.2+.5*clamp(Math.abs(v.speed)/(v.cfg.maxV*.35),0,1),g:'R'}}v.gearR=false;
+ let r=.2+.7*rpm;if(thr>.05)r=Math.max(r,.3+thr*.15);return{r:Math.max(r,.18+act*.55),g:v.mg}};
+function shift(v,d){if(!v||!v.man)return;const n=v.gn||6,g=clamp(v.mg+d,1,n);if(g!==v.mg){v.mg=g;v.shT=.25}}
+// ---------- motor de física por veículo ----------
+const SINK={};
+window.__PT=(v,thr,dt)=>{if(dt<=0||v.carried)return v._pt||null;const c=v.cfg;
+ v._st=(v._st||0)-dt;if(v._st<=0||!v._sf){v._st=.12+Math.random()*.06;const co=Math.cos(v.yaw),si=Math.sin(v.yaw),f=c.lf||2,b=c.lr||2;
+  const s0=surfAt(v.x,v.z),s1=surfAt(v.x+si*f,v.z+co*f),s2=surfAt(v.x-si*b,v.z-co*b);v._sf=[s0,s1,s2]}
+ const [s0,s1,s2]=v._sf,wet=WX.wet,ty=TYR[v.tyre||'m'],tk=c.track;
+ const sm=(k)=>(s0[k]+s1[k]*.5+s2[k]*.5)/2;
+ let mu=sm('mu'),rr=sm('rr'),sk=sm('sk'),soft=sm('soft');const wetK=Math.max(s0.wet||1,s1.wet||1);
+ mu*=1-(soft>.1?.42*wet*wetK*Math.min(1,soft+.3):.27*wet);rr*=1+1.1*wet*Math.min(1,soft+.2);sk*=1+1.8*wet;
+ const hard=1-Math.min(1,soft*1.4);let tm=tk?(hard*.9+(1-hard)*1.2):(hard*ty.h+(1-hard)*ty.s);if(!tk)rr*=hard+(1-hard)*ty.rs;
+ let dl=1;if(v.diff&&!tk)dl=1+.3*(1-hard)+.05;mu=Math.max(.12,mu*tm*dl);
+ const wf=v.wf||1,load=1+(1-wf)*1.3;sk*=load*(1+v.mud*1.5);
+ // câmbio
+ let am=1,vm=c.maxV,rpm=.4;
+ if(v.man&&!tk){const fr=gearFrac(v,v.mg),top=c.maxV*fr;rpm=clamp(Math.abs(v.speed)/top,0,1.05);let tq=rpm<.3?.4+rpm*2:rpm<.82?1:Math.max(.4,1-(rpm-.82)*3);if(rpm<.13&&v.mg>2&&thr>.3){tq*=.4;v.lug=1}else v.lug=0;am=tq/Math.pow(fr,.62);vm=top}else v.lug=0;
+ if(v.lim)vm=Math.min(vm,v.lim);
+ // tração
+ const dw=tk?1.15:(v.diff?.9:.62),tl=mu*9.8*dw;let des=Math.abs(thr)*c.acc*wf*am,spin=0;
+ if(des>tl&&Math.abs(thr)>.05&&v.speed*thr>=-.01){spin=clamp((des-tl)/des,0,1);am*=tl/des*(1-spin*.18)}
+ // diferencial travado: mais força na lama, curva pior
+ if(v.diff&&!tk&&soft>.2){am*=1+.2*soft;}
+ // atolamento: esforço (aceleração sobrando) contra resistência da lama
+ const dr0=rr*9.8*(tk?.75:1)*(v.diff&&!tk?1-.16*soft:1),dr=dr0*(1+v.mud*1.7)+v.mud*.3;
+ const net=Math.abs(thr)*c.acc*wf*am-dr0;
+ if(soft>.25&&Math.abs(thr)>.5&&(spin>.2||net<.3)&&Math.abs(v.speed)<5){const stress=Math.max(spin,clamp((.3-net)/.3,0,1));v.mud=Math.min(1,v.mud+dt*.24*stress*soft*(.7+wet*.6))}else v.mud=Math.max(0,v.mud-dt*(Math.abs(v.speed)>3||Math.abs(thr)<.1?.1:.02));
+ const sks=SINK[v.name]||0;SINK[v.name]=sks+(Math.max(0,sk-.012)*(.6+.4*Math.min(1,Math.abs(v.speed)/4+.2))-sks)*Math.min(1,dt*1.2);
+ v._br=thr*v.speed<-.01;
+ v.sfc=s0;v.spin=spin;v.muE=mu;
+ if(v===vehicles[cur]){if(v.mud>.78&&Math.abs(v.speed)<1.2&&!v.stuckW){v.stuckW=1;say('🕳️ <b>Atolado!</b> Use a trava do diferencial (G), marcha baixa, descarregue ou chame o reboque.',6)}if(v.mud<.4)v.stuckW=0}
+ return v._pt={am,vm,br:clamp(mu,.3,1),dr,lg:mu*14*(v.diff&&!tk?.8:1),sk:SINK[v.name]}};
+// ---------- rastros que deformam o terreno + respingos ----------
+function rutDepth(x,z){const c=chunkAt(x),i=clamp(Math.round((x-c.x0)/c.STEP),0,c.N),j=clamp(Math.round((z-c.z0)/c.STEP),0,c.N),k=j*c.VN+i;return c.REF[k]-c.H[k]}
+FX.hooks.push(dt=>{for(const v of vehicles){if(v.carried||!v._pt)continue;const sp=Math.abs(v.speed);if(sp<.4&&!(v.spin>.2))continue;
+ v.rutD=(v.rutD||0)+sp*dt+(v.spin>.2?1.2*dt:0);if(v.rutD<.9)continue;v.rutD=0;
+ const sf=v.sfc;if(!sf||!sf.sk||v.x<-80||v.x>240||v.z<-80||v.z>80)continue;const c=v.cfg,co=Math.cos(v.yaw),si=Math.sin(v.yaw),wf=v.wf||1;
+ const amt=(sf.soft*.016+WX.wet*.012*sf.soft)*(1+(1-wf)*1.6+v.mud)*(c.track?.6:1);
+ for(const lz of[-c.lr*.8,-c.lr*.1,c.lf*.55]){if(v.cfg.circ&&lz>0&&sp<1)continue;for(const sx of[-1,1]){const x=v.x+sx*c.hw*co+lz*si,z=v.z-sx*c.hw*si+lz*co;if(x<-79||x>239||z<-79||z>79)continue;if(rutDepth(x,z)<.32)modT(x,z,.62,-amt,-1)}}
+ if(v.spin>.25&&Math.random()<.6){const x=v.x-si*c.lr*.8,z=v.z-co*c.lr*.8;DX.puff(x,getH(x,z)+.3,z,WX.wet>.4||v.mud>.3?new THREE.Color(0x3a2a1c):PCOL[Math.max(0,Math.min(8,matAt(x,z)))].clone().lerp(new THREE.Color(0xd8cbb0),.4),2.2)}}});
+// ---------- luzes ----------
+const LTM={};const mkLm=(c)=>new THREE.MeshBasicMaterial({color:c});
+function addLamps(v){if(v.lamps||v.cfg.track)return;const hs=(v.hull||[]).filter(h=>h.obj===v.root);let z1=(v.cfg.lf||2)+.8,z0=-(v.cfg.lr||2)-.6,xw=(v.cfg.hw||1)+.2,yb=.9;
+ if(hs.length){z1=Math.max(...hs.map(h=>h.max.z));z0=Math.min(...hs.map(h=>h.min.z));xw=Math.max(...hs.map(h=>h.max.x));const h0=hs[0];yb=clamp(h0.min.y+(h0.max.y-h0.min.y)*.6,.45,1.15)}
+ const g=grp(v.root,0,0,0),L={g,hl:[],bl:[],br:[],tl:[],rv:[],hz:0};v.lamps=L;if(v.cfg.maxV<12&&(v.kind==='loader'||v.kind==='retro')){yb=1.0}
+ const mk=(arr,col,x,y,z,w,h,d)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mkLm(col));m.position.set(x,y,z);g.add(m);arr.push(m);return m};
+ for(const s of[-1,1]){mk(L.hl,0x6b7078,s*xw*.62,yb+.04,z1+.02,.38,.17,.07);mk(L.bl,0x6a5320,s*xw*.92,yb+.04,z1+.01,.17,.13,.07);mk(L.br,0x6a5320,s*xw*.92,yb+.08,z0-.01,.17,.13,.07);mk(L.tl,0x501212,s*xw*.7,yb+.08,z0-.02,.26,.15,.07);mk(L.rv,0x777777,s*xw*.45,yb-.14,z0-.02,.14,.08,.06)}}
+for(const v of vehicles)addLamps(v);
+const BLF=Math.floor;
+FX.hooks.push((dt,va)=>{const night=DN.night,bl=BLF(performance.now()/380)%2===0;for(const v of vehicles){
+  if(v.ltU===undefined)v.lt=night>.4?1:0;else v.lt=v.ltU;
+  const L=v.lamps;if(!L)continue;const hz=v.hz,lf=hz||v.sig===-1,rf=hz||v.sig===1;
+  L.hl.forEach(m=>m.material.color.setHex(v.lt===2?0xffffff:v.lt===1?0xfff0c4:0x6b7078));
+  L.bl.forEach((m,i)=>m.material.color.setHex((i===0?lf:rf)&&bl?0xffa51f:0x6a5320));L.br.forEach((m,i)=>m.material.color.setHex((i===0?lf:rf)&&bl?0xffa51f:0x6a5320));
+  L.tl.forEach(m=>m.material.color.setHex(v._br?0xff2a1a:v.lt>0?0xc02015:0x501212));L.rv.forEach(m=>m.material.color.setHex(v.speed<-.25?0xffffff:0x777777))}});
+// ---------- painel e teclas ----------
+const LTN=['Luzes: apagadas','Farol baixo','Farol alto'];
+function setLights(v){v.ltU=v.ltU===undefined?1:v.ltU===1?2:v.ltU===2?0:undefined;const n=v.ltU===undefined?'automático':LTN[v.ltU];say('💡 '+n,1.6)}
+function setSig(v,s){v.hz=false;v.sig=v.sig===s?0:s;say(v.sig===0?'Seta desligada':v.sig<0?'◀ Seta esquerda':'▶ Seta direita',1.2)}
+function setHaz(v){v.sig=0;v.hz=!v.hz;say(v.hz?'⚠️ Pisca-alerta ligado':'Pisca-alerta desligado',1.2)}
+const LIMS=[0,20,30,40,50];
+function setLim(v){const mx=v.cfg.maxV*3.6-3;let i=LIMS.findIndex(x=>v.lim&&Math.round(v.lim*3.6)===x);let n=i<0?1:i+1;while(n<LIMS.length&&LIMS[n]>=mx)n++;if(n>=LIMS.length){v.lim=0;say('🚧 Limitador desligado',1.6)}else{v.lim=LIMS[n]/3.6;say('🚧 Limitador: '+LIMS[n]+' km/h',1.6)}}
+function setTrans(v){if(v.cfg.track)return;v.man=!v.man;if(v.man){v.mg=clamp(Math.round(1+Math.abs(v.speed)/v.cfg.maxV*((v.gn||6)-1)),1,v.gn||6)}say(v.man?'⚙️ Câmbio manual — Shift ▲ / Ctrl ▼':'⚙️ Câmbio automático',2.2)}
+function setDiff(v){if(v.cfg.track)return;v.diff=!v.diff;say(v.diff?'🔒 Trava de diferencial ligada (mais tração, curva pior)':'🔓 Trava de diferencial desligada',2)}
+function setTyre(v){if(Math.hypot(v.x-OFI.x,v.z-OFI.z)>22){say('🛞 Pneus só se trocam na <b>Oficina DEDA</b>.<br>Atual: '+TYR[v.tyre||'m'].nm,3.2);return}const o=['e','m','l'];v.tyre=o[(o.indexOf(v.tyre||'m')+1)%3];TYS[v.name]=v.tyre;try{localStorage.setItem('mp_tyre',JSON.stringify(TYS))}catch(e){}say('🛞 Pneu '+TYR[v.tyre].nm+(v.tyre==='l'?' (melhor em lama e areia)':v.tyre==='e'?' (melhor no asfalto)':''),3)}
+function toggleRain(){WX.rain=!WX.rain;say(WX.rain?'🌧️ Começou a chover — o chão fica escorregadio e vira lama':'☀️ A chuva parou — o chão vai secando',3.5);rainBtn&&(rainBtn.textContent=WX.rain?'🌧️ Chuva: ligada':'🌧️ Chuva: desligada')}
+const CTLP=document.createElement('div');CTLP.className='panel';CTLP.style.cssText='position:fixed;left:50%;transform:translateX(-50%);top:46px;display:none;z-index:9;width:230px;background:rgba(14,14,14,.82);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:8px;color:#fff;font:12px system-ui,sans-serif';document.body.appendChild(CTLP);
+for(const ev of['pointerdown','touchstart','mousedown','wheel'])CTLP.addEventListener(ev,e=>e.stopPropagation(),{passive:true});
+const cpB={};const cpGrid=document.createElement('div');cpGrid.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px';CTLP.appendChild(cpGrid);
+function cpBtn(id,t,f){const b=document.createElement('button');b.className='btn';b.style.cssText='padding:9px 2px;font-size:12px;text-align:center';b.textContent=t;b.onpointerdown=e=>{e.stopPropagation();f(vehicles[cur]);cpUpd()};cpGrid.appendChild(b);cpB[id]=b;return b}
+cpBtn('lt','💡 Farol',setLights);cpBtn('sl','◀ Seta',v=>setSig(v,-1));cpBtn('sr','Seta ▶',v=>setSig(v,1));cpBtn('hz','⚠️ Alerta',setHaz);cpBtn('lim','🚧 Limite',setLim);cpBtn('tr','⚙️ Câmbio',setTrans);
+cpBtn('up','▲ Marcha',v=>shift(v,1));cpBtn('dn','▼ Marcha',v=>shift(v,-1));cpBtn('df','🔒 Diferencial',setDiff);cpBtn('ty','🛞 Pneus',setTyre);
+const rainBtn=document.createElement('button');rainBtn.className='btn';rainBtn.style.cssText='width:100%;margin-top:6px;padding:8px;font-size:12px';rainBtn.textContent='🌧️ Chuva: desligada';rainBtn.onpointerdown=e=>{e.stopPropagation();toggleRain()};CTLP.appendChild(rainBtn);
+const cpTx=document.createElement('div');cpTx.style.cssText='margin-top:6px;opacity:.75;font-size:10.5px;line-height:1.35';cpTx.innerHTML='PC: <b>F</b> farol · <b>Z</b>/<b>X</b> setas · <b>B</b> alerta · <b>H</b> buzina · <b>N</b> limitador · <b>T</b> câmbio · <b>Shift</b>/<b>Ctrl</b> marchas · <b>G</b> diferencial';CTLP.appendChild(cpTx);
+function cpUpd(){const v=vehicles[cur];if(!v)return;const on=(b,x)=>{b.className='btn'+(x?' on':'')};on(cpB.lt,v.ltU!==undefined&&v.ltU>0);on(cpB.sl,v.sig===-1);on(cpB.sr,v.sig===1);on(cpB.hz,v.hz);on(cpB.lim,!!v.lim);on(cpB.tr,v.man);on(cpB.df,v.diff);
+ cpB.lim.textContent='🚧 '+(v.lim?Math.round(v.lim*3.6)+' km/h':'Limite');cpB.tr.textContent=v.cfg.track?'⚙️ —':'⚙️ '+(v.man?'Manual':'Auto');cpB.lt.textContent=v.ltU===2?'💡 Alto':v.ltU===1?'💡 Baixo':v.ltU===0?'💡 Off':'💡 Auto';
+ for(const k of['up','dn','df','ty'])cpB[k].style.opacity=v.cfg.track||(k!=='ty'&&k!=='df'&&!v.man)?.4:1}
+{const top=gid('top'),pb=document.createElement('button');pb.className='btn';pb.textContent='🎛️ Painel';top.appendChild(pb);pb.onpointerdown=e=>{e.stopPropagation();const on=CTLP.style.display!=='block';closePanels();CTLP.style.display=on?'block':'none';cpUpd()}}
+FX.menuAdd('🌧️ Chuva',()=>toggleRain());
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT'||window.__edOn)return;const k=e.key.toLowerCase(),v=vehicles[cur];if(!v||e.repeat)return;
+ if(k==='f')setLights(v);else if(k==='z')setSig(v,-1);else if(k==='x')setSig(v,1);else if(k==='b')setHaz(v);else if(k==='n')setLim(v);else if(k==='t')setTrans(v);else if(k==='g')setDiff(v);else if(k==='shift'){shift(v,1);e.preventDefault()}else if(k==='control'){shift(v,-1);e.preventDefault()}else return;if(CTLP.style.display==='block')cpUpd()});
+const HUDX6=HUDX;HUDX=function(v){let s=HUDX6(v);const t=[];
+ if(v.man)t.push('⚙️ Manual '+(v.speed<-.3?'R':v.mg+'ª')+(v.lug?' <span style="color:#ff9d7a">(marcha alta, motor engasgando)</span>':''));if(v.lim)t.push('🚧 '+Math.round(v.lim*3.6)+' km/h');if(v.diff)t.push('🔒 diferencial');
+ if(v.ltU!==undefined&&v.ltU>0)t.push(v.ltU===2?'💡 alto':'💡 baixo');if(v.hz)t.push('⚠️');else if(v.sig)t.push(v.sig<0?'◀':'▶');
+ if(t.length)s+='<br>'+t.join(' · ');
+ if(v._pt&&v.sfc&&roadV(v)){const grip=Math.round(v.muE*100);s+='<br><span style="color:'+(grip<55?'#ff9d7a':grip<75?'#ffc46b':'#b8f0b8')+'">🛞 '+v.sfc.nm+(WX.wet>.3?' molhado':'')+' · aderência '+grip+'%'+(v.mud>.15?' · <b>lama '+Math.round(v.mud*100)+'%</b>':'')+'</span>'}return s};
+// ---------- socorro (reboque) quando atolado ----------
+const towB=document.createElement('button');towB.className='btn on';towB.style.cssText='position:fixed;left:50%;top:186px;transform:translateX(-50%);z-index:8;display:none;font-size:14px;padding:9px 16px;background:#b3401c;color:#fff;font-weight:800;border-radius:10px;border:0';document.body.appendChild(towB);
+towB.textContent='🆘 Reboque de socorro · R$ 600';towB.onpointerdown=e=>{e.stopPropagation();const v=vehicles[cur];if(!v)return;const co=Math.cos(v.yaw),si=Math.sin(v.yaw);let x=v.x,z=v.z;for(let d=3;d<=24;d+=3){const px=v.x-si*d,pz=v.z-co*d;x=px;z=pz;const s=surfAt(px,pz);if(s.soft<.45)break}
+ v.x=x;v.z=z;v.mud=0;v.speed=0;SINK[v.name]=0;MIS.addMoney(-600);say('🆘 O reboque puxou o veículo para chão firme · R$ 600',4)};
+setInterval(()=>{const v=vehicles[cur];towB.style.display=v&&!window.__edOn&&v.mud>.55&&Math.abs(v.speed)<1.5?'block':'none'},400);
+window.__PTX={SF,surfAt,WX,RDG,TYR,shift,setTrans,setLim,setLights,setSig,setHaz,setDiff,setTyre,toggleRain};
+
+// ================= CAMINHÕES NOVOS (mais vendidos 2025) + CARRETAS COM ENGATE =================
+// Referências de porte e configuração (nomes fictícios): cavalo pesado 6x4 e 4x2 de cabine alta (FH 540 / FH 460),
+// caminhão médio toco com baú (Delivery 11.180) e semirreboques de 3 eixos: baú, sider, graneleira e tanque.
+const KP=7.4,KPY=1.4; // distância pino-rei → eixos e altura da quinta roda
+const SNDH={idle:19,max:56,turbo:1.2,knock:.15,horn:[155,196]};
+function mkTractor(NM_,X_,Z_,Y_,o){const six=o.six;
+ const v=newVeh(NM_,{maxV:o.maxV||16,acc:o.acc||1.7,brake:6,wb:six?3.95:3.5,steerMax:.55,lf:2.6,lr:six?1.6:1.15,hw:1.0,cab:[.55,3.45,2.75],dist:24,circ:[[2.8,1.35],[.6,1.35],[-1.3,1.35]],snd:SNDH,beep:true,brakes:true,mass:o.mass||12,tank:o.tank||520},X_,Z_,Y_);
+ const r=v.root,B=M.blk,COL=std(o.col,.32,.45,{map:grimeTex});
+ for(const s of[-1,1])box(r,.16,.32,six?6.6:5.9,B,s*.45,1.05,six?.4:.55);
+ truckCab(v,r,COL,2.6,o.brand,true);
+ for(const s of[-1,1]){rbox(r,.62,.62,1.2,.14,M.chrome,s*1.0,1.3,.85,'z');cyl(r,.15,.8,M.steel,s*.95,1.2,-.25,Math.PI/2);prof(r,[[1.55,2.0],[1.55,4.0],[1.2,3.95],[1.2,2.0]],.08,COL,s*1.2,0,0);
+  if(o.stripe)box(r,.03,.18,2.0,M.chrome,s*1.255,2.35,2.6)}
+ const fz=six?-1.35:-1.0;rbox(r,1.7,.16,1.5,.06,M.grey,0,1.3,fz);cyl(r,.1,.12,B,0,1.42,fz);
+ for(const s of[-1,1]){wheel(v,r,.55,.42,s*1.05,.55,2.6,true);arch(r,.68,.5,s*1.05,.55,2.6,B);
+  if(six){wheel(v,r,.55,.72,s*.95,.55,-.7);wheel(v,r,.55,.72,s*.95,.55,-2.0);rbox(r,.82,.07,2.9,.03,B,s*.95,1.2,-1.35);box(r,.6,.5,.03,B,s*.95,.55,-2.7)}
+  else{wheel(v,r,.55,.72,s*.95,.55,-1.0);rbox(r,.82,.07,1.6,.03,B,s*.95,1.2,-1.0);box(r,.6,.5,.03,B,s*.95,.55,-1.9)}}
+ // reservatório e tomada de ar
+ for(const s of[-1]){cyl(r,.3,1.5,M.chrome,s*1.02,1.0,.1,Math.PI/2,0,14)}
+ const tail=six?-2.9:-2.2;
+ v.paint={cab:COL,bed:COL};v.kind='truck';v.short=o.short;v.fw=[0,KPY,fz];
+ hull(v,r,[-1.28,0,tail],[1.28,1.4,3.95]);hull(v,r,[-1.28,1.4,1.55],[1.28,4.35,3.95]);return v}
+// ---------- carretas ----------
+function mkTrailer(NM_,X_,Z_,Y_,type,o){const v=newVeh(NM_,{maxV:15,acc:0,brake:0,wb:7,steerMax:0,lf:0,lr:7,hw:1.0,cab:[0,3.4,-4],dist:27,circ:[[-1,1.35],[-3.5,1.35],[-6,1.35],[-8.3,1.35]],snd:SNDH,mass:o.mass||7},X_,Z_,Y_);v.kind='trailer';v.short=o.short;
+ const r=v.root,B=M.blk,BODY=std(o.col,.45,.3,{map:grimeTex}),DK=std(o.col2||0x1c1f22,.6,.4);
+ for(const s of[-1,1])box(r,.18,.32,9.6,B,s*.45,-.05,-4.3);box(r,1.4,.25,1.2,M.grey,0,-.05,-.2);cyl(r,.2,.12,M.steel,0,-.2,0);
+ // pés de apoio (estendem quando desengatada)
+ v.legs=[];for(const s of[-1,1]){const g=grp(r,s*.65,-.12,-1.6);const l=box(g,.14,1,.14,M.grey,0,-.5,0);const f=box(g,.35,.06,.35,M.steel,0,-1,0);v.legs.push({g:l,f,ext:1})}
+ for(const s of[-1,1]){for(const z of[-6.3,-7.4,-8.5])wheel(v,r,.55,.72,s*.95,-.85,z);rbox(r,.85,.07,3.5,.03,B,s*.95,-.18,-7.4);box(r,.6,.5,.03,B,s*.95,-.9,-9.0);box(r,.05,.3,4.2,M.steel,s*1.2,-.65,-3.6)}
+ rbox(r,2.3,.18,.18,.04,M.steel,0,-.75,-9.3);
+ const bd=grp(r,0,.15,-9.0),L=9.8;let top=2.7;
+ if(type==='bau'){top=2.9;box(bd,2.5,.1,L,BODY,0,.05,L/2);box(bd,2.55,top,L,BODY,0,.1+top/2,L/2);
+  for(const s of[-1,1])for(let i=0;i<12;i++)box(bd,.05,top,.1,DK,s*1.29,.1+top/2,.5+i*.8);
+  box(bd,2.4,.6,.06,o.band||std(0xc21f1f,.5,.3),0,1.5,-.02);box(bd,.04,.5,L-1,o.band||std(0xc21f1f,.5,.3),1.285,1.5,L/2);box(bd,.04,.5,L-1,o.band||std(0xc21f1f,.5,.3),-1.285,1.5,L/2);
+  decal(bd,o.brand||'TRANSPORTE',3.4,.8,1.29,1.9,L*.45,Math.PI/2,o.brandCol||'#fff');decal(bd,o.brand||'TRANSPORTE',3.4,.8,-1.29,1.9,L*.45,-Math.PI/2,o.brandCol||'#fff');
+  for(const s of[-1,1])box(bd,1.15,top-.15,.05,DK,s*.62,.1+top/2,-.02);}
+ else if(type==='sider'){top=2.8;box(bd,2.5,.1,L,BODY,0,.05,L/2);const CT=std(o.col2||0x20408f,.8,0,{map:grimeTex});
+  box(bd,2.5,.12,L,DK,0,.1+top,L/2);for(const s of[-1,1]){box(bd,.05,top-.25,L-.2,CT,s*1.26,.2+top/2-.1,L/2);rbox(bd,.1,.14,L,.03,DK,s*1.27,.12,L/2);rbox(bd,.1,.14,L,.03,DK,s*1.27,.1+top,L/2)}
+  for(const s of[-1,1])for(let i=0;i<10;i++)box(bd,.08,top,.12,DK,s*1.28,.1+top/2,.45+i*1.0);box(bd,2.5,top,.08,DK,0,.1+top/2,-.02);
+  decal(bd,o.brand||'SIDER',3.0,.7,1.3,1.6,L*.5,Math.PI/2,'#fff');decal(bd,o.brand||'SIDER',3.0,.7,-1.3,1.6,L*.5,-Math.PI/2,'#fff')}
+ else if(type==='graneleira'){top=2.1;box(bd,2.5,.1,L,BODY,0,.05,L/2);
+  for(const s of[-1,1]){prof(bd,[[0,.05],[L,.05],[L,top],[0,top]],.08,BODY,s*1.25,0,0);rbox(bd,.18,.14,L+.1,.04,DK,s*1.27,top+.03,L/2)}
+  box(bd,2.5,top,.08,BODY,0,top/2+.05,-.02);box(bd,2.5,top,.08,BODY,0,top/2+.05,L);
+  for(let i=0;i<9;i++)box(bd,2.55,.07,.09,DK,0,top+.03,.4+i*1.1);
+  for(const s of[-1,1])for(let i=0;i<6;i++)box(bd,.06,.5,.4,M.steel,s*1.28,.2,1.2+i*1.5);
+  decal(bd,o.brand||'GRÃOS',3.0,.7,1.3,1.2,L*.5,Math.PI/2,'#222');decal(bd,o.brand||'GRÃOS',3.0,.7,-1.3,1.2,L*.5,-Math.PI/2,'#222');
+  v.grain=box(bd,2.3,1,L-.4,std(0xd9a73b,.95,0),0,.1,L/2);v.grain.visible=false;v.grainH=top-.35}
+ else if(type==='tanque'){top=2.5;const TM=std(o.col,.25,.75,{map:grimeTex});top=2.5;
+  cyl(bd,1.2,L,TM,0,1.45,L/2,Math.PI/2,0,28);for(let i=0;i<5;i++)cyl(bd,1.24,.14,DK,0,1.45,.9+i*2.0,Math.PI/2,0,28);
+  for(let i=0;i<3;i++){cyl(bd,.28,.3,DK,0,2.62,1.6+i*3.2,0,0,12)}box(bd,.7,.06,L-.4,M.steel,0,2.7,L/2);
+  rbox(bd,1.6,.4,L-.2,.1,DK,0,.35,L/2);cyl(bd,.32,.5,M.chrome,.7,.55,L+.1,Math.PI/2);
+  decal(bd,o.brand||'COMBUSTÍVEL',3.4,.8,1.17,1.5,L*.5,Math.PI/2,'#fff');decal(bd,o.brand||'COMBUSTÍVEL',3.4,.8,-1.17,1.5,L*.5,-Math.PI/2,'#fff');top=2.7}
+ const lampsT=[];for(const s of[-1,1]){lamp(r,s*.95,-.45,-9.25,.3,.14)}
+ v.paint={cab:BODY,bed:BODY};
+ hull(v,r,[-1.28,-1.4,-9.4],[1.28,.12,.6]);hull(v,r,[-1.3,.1,-9.7],[1.3,.2+top,-.1]);
+ Object.assign(v,{fx:{type,Lk:KP},cargoT:0,cargoCap:o.cap||24,cargoNm:o.cargoNm||'carga seca',tl:o.tl||type,kpx:0});return v}
+// ---------- caminhão médio toco com baú ----------
+function mkBauTruck(NM_,X_,Z_,Y_){const v=newVeh(NM_,{maxV:16.5,acc:2.2,brake:6.5,wb:4.2,steerMax:.6,lf:2.1,lr:2.0,hw:.98,cab:[.5,2.7,1.4],dist:17,circ:[[2.6,1.3],[.6,1.3],[-1.5,1.3],[-3.4,1.3]],snd:{idle:22,max:62,turbo:.8,knock:.25,horn:[190,240]},beep:true,brakes:true,mass:7.5,tank:200},X_,Z_,Y_);
+ const r=v.root,B=M.blk,COL=std(0xf1f1ee,.35,.35,{map:grimeTex}),BX=std(0xe8e8e4,.5,.2,{map:grimeTex});
+ for(const s of[-1,1])box(r,.16,.3,7.2,B,s*.45,1.0,-.3);
+ truckCab(v,r,COL,1.4,'ENTREGA',false);
+ for(const s of[-1,1]){rbox(r,.6,.6,1.1,.14,M.chrome,s*.98,1.25,.3,'z');wheel(v,r,.5,.4,s*.98,.5,2.1,true);arch(r,.62,.46,s*.98,.5,2.1,B);wheel(v,r,.5,.62,s*.92,.5,-2.0);wheel(v,r,.5,.62,s*.92,.5,-2.0+.0001)}
+ const bz=-.25;box(r,2.4,.12,6.6,M.grey,0,1.2,-1.65);
+ box(r,2.45,2.65,6.5,BX,0,1.2+.06+1.32,-1.65);box(r,2.5,.12,6.6,M.steel,0,1.2+.06+2.66,-1.65);
+ for(const s of[-1,1])for(let i=0;i<8;i++)box(r,.05,2.65,.1,M.grey,s*1.25,2.53,-4.7+i*.9);
+ box(r,2.3,.5,.06,std(0x1f6ec2,.5,.3),0,2.4,1.6-.05);
+ for(const s of[-1,1]){box(r,.04,.5,6.0,std(0x1f6ec2,.5,.3),s*1.255,2.0,-1.65);decal(r,'ENTREGA',2.6,.65,s*1.255,2.9,-1.65,s*Math.PI/2,'#1f6ec2')}
+ box(r,1.2,2.4,.05,M.grey,0,2.5,-4.93);box(r,.04,2.4,.05,B,0,2.5,-4.95);
+ v.paint={cab:COL,bed:BX};v.kind='truck';v.short='Delivery 11.180 (baú)';v.cargoT=0;v.cargoCap=6;v.cargoNm='carga seca (baú)';v.isBox=true;
+ hull(v,r,[-1.2,0,-5.0],[1.2,1.3,3.2]);hull(v,r,[-1.2,1.3,.3],[1.2,3.5,3.1]);hull(v,r,[-1.28,1.2,-4.95],[1.28,4.0,1.55]);return v}
+
+// ----------- criar a frota nova no pátio da DEDA -----------
+const NEW0=vehicles.length;
+const tFH=mkTractor('Cavalo FH-540 6x4 (cabine alta)',150,-60,0,{six:true,col:0x1d4f91,brand:'FJORD 540',short:'FH-540 6x4',maxV:16.5,acc:1.85,mass:12.5,tank:600,stripe:true});
+const tFH2=mkTractor('Cavalo FH-460 4x2 (cabine alta)',158,-60,0,{six:false,col:0xb3282d,brand:'FJORD 460',short:'FH-460 4x2',maxV:16,acc:1.6,mass:9.5,tank:480});
+const tBau=mkBauTruck('Caminhão Delivery 11.180 baú',166,-60,0);
+const trBau=mkTrailer('Carreta Baú 3 eixos',150,-34,0,'bau',{short:'Carreta baú',col:0xefefec,cap:24,brand:'RODOVIA',cargoNm:'carga seca (baú)'});
+const trSider=mkTrailer('Carreta Sider 3 eixos',158,-34,0,'sider',{short:'Carreta sider',col:0xd9dadb,col2:0x20408f,cap:26,brand:'SIDER',cargoNm:'carga paletizada'});
+const trGran=mkTrailer('Carreta Graneleira 3 eixos',166,-34,0,'graneleira',{short:'Carreta graneleira',col:0xe3b022,cap:28,brand:'GRÃOS',cargoNm:'grãos'});
+const trTanq=mkTrailer('Carreta Tanque 3 eixos',174,-34,0,'tanque',{short:'Carreta tanque',col:0xc9ccd0,cap:25,brand:'COMBUSTÍVEL',cargoNm:'diesel S10'});
+for(const v of vehicles.slice(NEW0)){updVeh(v,0,ZERO,true);v.fuel=TANK(v);v.mg=1;v.man=false;v.gn=6;v.diff=false;v.mud=0;v.lt=0;v.tyre='m';if(v.kind!=='trailer')addLamps(v)}
+// pose de repouso das carretas soltas
+const KW=new THREE.Vector3();
+function trailerRest(t){const c=Math.cos(t.yaw),s=Math.sin(t.yaw),hK=getH(t.x,t.z),ax=t.x-s*KP,az=t.z-c*KP,hA=(getH(ax+c*1.1,az-s*1.1)+getH(ax-c*1.1,az+s*1.1))/2;
+ t.root.position.set(t.x,hK+KPY,t.z);t.root.rotation.set(Math.asin(clamp((hA-hK)/KP,-.6,.6)),t.yaw,Math.atan2(getH(ax+c*1.1,az-s*1.1)-getH(ax-c*1.1,az+s*1.1),2.2)*.8);t.root.updateMatrixWorld(true)}
+const TRL=vehicles.filter(v=>v.kind==='trailer');
+for(const t of TRL){trailerRest(t);t.hp=null}
+function setLegs(t,ext){for(const l of t.legs){l.ext=ext;l.g.scale.y=ext?1:.45;l.g.position.y=ext?-.5:-.2;l.f.position.y=ext?-1:-.45}}
+for(const t of TRL)setLegs(t,1);
+// lanternas traseiras das carretas (seguem o cavalo)
+for(const t of TRL){const g=grp(t.root,0,0,0),L={g,hl:[],bl:[],br:[],tl:[],rv:[]};t.lamps=L;
+ for(const s of[-1,1]){const mkp=(arr,col,x,y,z,w,h)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,.07),mkLm(col));m.position.set(x,y,z);g.add(m);arr.push(m)};
+  mkp(L.br,0x6a5320,s*1.1,.75,-9.84,.17,.13);mkp(L.tl,0x501212,s*.9,.95,-9.84,.26,.15);mkp(L.rv,0x777777,s*.6,.55,-9.84,.14,.08);mkp(L.bl,0x6a5320,s*1.1,.75,-.05,.01,.01)}}
+// ---------- engate ----------
+const HB=document.createElement('button');HB.className='btn on';HB.style.cssText='position:fixed;left:50%;top:232px;transform:translateX(-50%);z-index:8;display:none;font-size:14px;padding:9px 16px;background:#1d6fb8;color:#fff;font-weight:800;border-radius:10px;border:0';document.body.appendChild(HB);
+function tractorOf(v){return v&&v.fw?v:null}
+function fwWorld(v,o){v.root.updateMatrixWorld();return v.root.localToWorld((o||KW).set(v.fw[0],v.fw[1],v.fw[2]))}
+function nearTrailer(v){let best=null,bd=1e9;const P=fwWorld(v,new THREE.Vector3());for(const t of TRL){if(t.hp)continue;const d=Math.hypot(P.x-t.x,P.z-t.z);const dy=Math.abs(Math.atan2(Math.sin(t.yaw-v.yaw),Math.cos(t.yaw-v.yaw)));if(d<bd){bd=d;best={t,d,dy}}}return best}
+function hitch(v){if(!tractorOf(v)||v.trl)return;const n=nearTrailer(v);if(!n||n.d>2.6||n.dy>.8){say('🔗 Dê ré até o pino-rei da carreta ficar sobre a quinta roda.',3);return}if(Math.abs(v.speed)>2){say('🔗 Pare o caminhão para engatar.',2);return}
+ const t=n.t;v.trl=t;t.hp=v;setLegs(t,0);t.ax=t.x-Math.sin(t.yaw)*KP;t.az=t.z-Math.cos(t.yaw)*KP;MIS.beep&&0;say('🔗 Carreta engatada: '+t.short+' ('+f1(t.cargoT)+' t)',3)}
+function unhitch(v){if(!v.trl)return;if(Math.abs(v.speed)>.8){say('🔌 Pare o caminhão para desengatar.',2);return}const t=v.trl,P=fwWorld(v,new THREE.Vector3());t.x=P.x;t.z=P.z;t.yaw=t.yawA||v.yaw;t.hp=null;v.trl=null;setLegs(t,1);trailerRest(t);say('🔌 Carreta desengatada e apoiada nos pés mecânicos.',3)}
+HB.onpointerdown=e=>{e.stopPropagation();const v=vehicles[cur];if(v.trl)unhitch(v);else hitch(v)};
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT'||window.__edOn||e.repeat)return;if(e.key.toLowerCase()==='v'){const v=vehicles[cur];if(!tractorOf(v))return;if(v.trl)unhitch(v);else hitch(v)}});
+setInterval(()=>{const v=vehicles[cur];if(!v||window.__edOn||!tractorOf(v)){HB.style.display='none';return}
+ if(v.trl){HB.style.display=Math.abs(v.speed)<.8?'block':'none';HB.textContent='🔌 Desengatar '+v.trl.short+' (V)';return}
+ const n=nearTrailer(v);const ok=n&&n.d<2.6&&n.dy<.8;HB.style.display=n&&n.d<14?'block':'none';HB.textContent=ok?'🔗 Engatar '+n.t.short+' (V)':'🔗 Aproxime de ré: '+n.t.short+' · '+(n.d).toFixed(1).replace('.',',')+' m'},200);
+// movimento da carreta engatada (curva de perseguição do pino-rei) + rodas e luzes
+FX.hooks.push(dt=>{for(const tc of vehicles){const t=tc.trl;if(!t||tc.carried)continue;const Hh=fwWorld(tc,new THREE.Vector3());
+  let dx=Hh.x-t.ax,dz=Hh.z-t.az;const Ld=Math.hypot(dx,dz)||1;dx/=Ld;dz/=Ld;let ty=Math.atan2(dx,dz);
+  let rel=Math.atan2(Math.sin(ty-tc.yaw),Math.cos(ty-tc.yaw));if(Math.abs(rel)>1.2){rel=Math.sign(rel)*1.2;ty=tc.yaw+rel;if(!t.jk){t.jk=1;if(tc===vehicles[cur])say('⚠️ Cavalo e carreta quase dobraram (jackknife). Endireite devagar.',3)}}else if(Math.abs(rel)<.8)t.jk=0;
+  t.ax=Hh.x-Math.sin(ty)*KP;t.az=Hh.z-Math.cos(ty)*KP;t.yaw=ty;t.yawA=ty;t.x=Hh.x;t.z=Hh.z;
+  const c=Math.cos(ty),s=Math.sin(ty),hp=getH(t.ax+c*1.1,t.az-s*1.1),hm=getH(t.ax-c*1.1,t.az+s*1.1);
+  t.root.position.copy(Hh);t.root.rotation.set(Math.asin(clamp(((hp+hm)/2+KPY-Hh.y)/KP,-.6,.6)),ty,Math.atan2(hp-hm,2.2)*.8);t.root.updateMatrixWorld(true);t.speed=tc.speed;
+  for(const w of t.wheels)w.s.rotation.x+=tc.speed*dt/w.r}
+ const bl=Math.floor(performance.now()/380)%2===0;for(const t of TRL){const L=t.lamps;if(!L)continue;const s=t.hp||{};const lf=s.hz||s.sig===-1,rf=s.hz||s.sig===1;
+  L.br.forEach((m,i)=>m.material.color.setHex((i===0?lf:rf)&&bl?0xffa51f:0x6a5320));L.tl.forEach(m=>m.material.color.setHex(s._br?0xff2a1a:s.lt>0?0xc02015:0x501212));L.rv.forEach(m=>m.material.color.setHex(s.speed<-.25?0xffffff:0x777777))}
+ for(const t of TRL)if(t.grain){const f=t.cargoCap?t.cargoT/t.cargoCap:0;t.grain.visible=f>.01;if(f>.01){t.grain.scale.y=Math.max(.05,f*t.grainH);t.grain.position.y=.1+t.grain.scale.y/2}}});
+window.__TRL={TRL,hitch,unhitch,tractorOf,trailerRest,tFH,tFH2,tBau,mkTrailer,mkTractor,KP};
+
+// ================= FRETES COM CARRETA (engate, carga, entrega) =================
+const FRT={bau:{nm:'Baú',ic:'📦',tl:'bau',mat:'carga seca',tons:[10,22],k:1.0,dest:'city'},
+ sider:{nm:'Sider',ic:'🏗️',tl:'sider',mat:'carga paletizada',tons:[12,24],k:1.1,dest:'city'},
+ gran:{nm:'Graneleira',ic:'🌾',tl:'graneleira',mat:'grãos',tons:[14,26],k:1.15,dest:'port'},
+ tanq:{nm:'Tanque',ic:'⛽',tl:'tanque',mat:'diesel S10',tons:[10,22],k:1.3,dest:'fuel'},
+ leve:{nm:'Entrega leve',ic:'🚚',tl:null,mat:'carga seca',tons:[1.5,5],k:.9,dest:'city',box:true}};
+const DOCK={nm:'Pátio da DEDA',x:150,z:-18};
+const FUELD=ILH.lm.filter(l=>l.t==='fuel'&&l.f).map(l=>({nm:l.n,x:l.f[0],z:l.f[1]}));
+const PORTD=[{nm:'Porto de Areia',x:PORT.C.x,z:PORT.C.z},{nm:'Obra na outra margem · Rua Clara Pandini',x:-320,z:-1896}];
+function genF(){const ks=['bau','bau','sider','sider','gran','tanq','leve'],key=ks[Math.random()*ks.length|0],K=FRT[key];
+ const d=K.dest==='fuel'&&FUELD.length?FUELD[Math.random()*FUELD.length|0]:K.dest==='port'?PORTD[Math.random()*PORTD.length|0]:DESTS[Math.random()*DESTS.length|0];
+ const tons=Math.round((K.tons[0]+Math.random()*(K.tons[1]-K.tons[0]))*2)/2,dist=Math.hypot(d.x-DOCK.x,d.z-DOCK.z);
+ return{key,K,tons,dest:d,dist,pay:Math.round((520+dist*1.6+tons*42)*K.k/10)*10,lim:Math.round(480+dist/3+tons*12)}}
+let FRS=[genF(),genF(),genF()];
+function frDef(F,k){const K=F.K,tIdx=K.box?vehicles.indexOf(tBau):vehicles.indexOf(tFH),cu=vehicles[cur],vi=K.box?(cu.isBox?cur:tIdx):(cu.fw?cur:tIdx);
+ const trOf=T=>K.box?T:T.trl;
+ return{id:'frete',nm:'Frete · '+K.nm+' · '+f1(F.tons)+' t',ic:K.ic,veh:vi,lim:F.lim,noReset:true,pay:[Math.round(F.pay*.7/10)*10,Math.round(F.pay*.85/10)*10,F.pay],
+  desc:(K.box?'Carregue o caminhão baú no pátio da DEDA':'Engate uma carreta '+K.nm.toLowerCase()+', carregue no pátio da DEDA')+' e entregue '+f1(F.tons)+' t de '+K.mat+' em '+F.dest.nm+' ('+kmS(F.dist)+'). Pare dentro do círculo verde para carregar e descarregar. Siga o GPS no minimapa.',
+  setup(S){S.T=vehicles[vi];S.ph=-1;S.go=ph=>{S.ph=ph;MIS.clearMarks();if(ph===0){const t=TRL.filter(q=>!q.hp&&q.tl===K.tl).sort((a,b)=>Math.hypot(a.x-S.T.x,a.z-S.T.z)-Math.hypot(b.x-S.T.x,b.z-S.T.z))[0];if(t)MIS.zone(t.x,t.z,9,0x3a9bff,'Engatar: '+t.short)}
+    else if(ph===1)MIS.zone(DOCK.x,DOCK.z,12,0xffc233,'Carregar · '+DOCK.nm);else MIS.zone(F.dest.x,F.dest.z,10,0x37e06a,F.dest.nm)};
+   const tr=trOf(S.T);S.go(K.box||(tr&&tr.tl===K.tl)?(tr&&tr.cargoT>=F.tons-.01?2:1):0)},
+  upd(S,dt){const T=S.T,tr=trOf(T);
+   if(!K.box&&(!tr||tr.tl!==K.tl)){if(S.ph!==0)S.go(0);S.info='Engate a carreta <b>'+K.nm.toLowerCase()+'</b> (botão 🔗 ou tecla V, dê ré até o pino-rei)';S.prog=0;return}
+   if(S.ph===0)S.go(tr.cargoT>=F.tons-.01?2:1);
+   const ds=Math.hypot(T.x-DOCK.x,T.z-DOCK.z),dd=Math.hypot(T.x-F.dest.x,T.z-F.dest.z),st=Math.abs(T.speed)<.7;
+   if(S.ph===1){if(ds<13&&st){tr.cargoT=Math.min(F.tons,tr.cargoT+F.tons/6*dt);tr.cargoNm=K.mat;S.info='📥 Carregando '+f1(tr.cargoT)+' / '+f1(F.tons)+' t…';if(tr.cargoT>=F.tons-.01){tr.cargoT=F.tons;S.go(2);say('✅ Carga completa. Siga para '+F.dest.nm,3.5)}}
+    else S.info=(tr.cargoT>0?'Carga parcial: '+f1(tr.cargoT)+' t · ':'')+'Vá até o <b>'+DOCK.nm+'</b> e pare dentro do círculo para carregar ('+kmS(ds)+')';
+    S.prog=.25+.25*tr.cargoT/F.tons;return}
+   if(S.ph===2){if(dd<11&&st){tr.cargoT=Math.max(0,tr.cargoT-F.tons/5*dt);S.info='📤 Descarregando… '+f1(tr.cargoT)+' t restantes';S.prog=.5+.5*(1-tr.cargoT/F.tons);if(tr.cargoT<=.01){tr.cargoT=0;return true}}
+    else{S.info='Entregue '+f1(F.tons)+' t de '+K.mat+' em <b>'+F.dest.nm+'</b> ('+kmS(dd)+')'+(T.trl&&T.trl.jk?' · <span style="color:#ff9d7a">cuidado com a carreta</span>':'');S.prog=.5}}},
+  stars(S){const f=S.t/F.lim;return f<=.6?3:f<=.85?2:1},
+  onEnd(ok){const tr=trOf(vehicles[vi]);if(tr)tr.cargoT=0;if(ok)FRS[FRS.indexOf(F)]=genF()}}}
+{const _me=window.__misExtra;window.__misExtra=(P,start)=>{
+ const h=document.createElement('div');h.innerHTML='<div class="ttl" style="margin-top:4px">🚛 Fretes com carreta — engate, carga e entrega</div>';P.appendChild(h);
+ FRS.forEach((F,k)=>{const r=document.createElement('div');r.className='mi';r.innerHTML='<span style="font-size:20px">'+F.K.ic+'</span><div><b>'+F.K.nm+' · '+f1(F.tons)+' t de '+F.K.mat+'</b> → '+F.dest.nm+'<small>'+kmS(F.dist)+' · prazo '+Math.round(F.lim/60)+' min · paga até <b>R$ '+F.pay.toLocaleString('pt-BR')+'</b></small></div>';
+  const b=document.createElement('button');b.className='btn on';b.textContent='Aceitar';b.onpointerdown=e=>{e.stopPropagation();start(frDef(F,k))};r.appendChild(b);P.appendChild(r)});
+ const b=document.createElement('button');b.className='btn';b.textContent='🔄 Outros fretes';b.onpointerdown=e=>{e.stopPropagation();FRS=[genF(),genF(),genF()];MIS.build()};P.appendChild(b);
+ if(_me)_me(P,start)}}
+// peso do baú leve e linhas do HUD
+{const _w=weigh;weigh=function(){_w();for(const v of vehicles)if(v.isBox&&v.cargoT){v.loadT+=v.cargoT;v.wf=m0Of(v)/(m0Of(v)+v.loadT)}}}
+{const _h=HUDX;HUDX=function(v){let s=_h(v);
+ if(v.trl){s+='<br>🚛 '+v.trl.short+(v.trl.cargoT>0?' · '+f1(v.trl.cargoT)+' t de '+v.trl.cargoNm:' · vazia')+(v.trl.jk?' <span style="color:#ff9d7a">⚠️ dobrando</span>':'')}
+ else if(v.fw)s+='<br><span style="opacity:.75">🔗 V engata/desengata carreta</span>';
+ if(v.isBox)s+='<br>📦 '+(v.cargoT>0?f1(v.cargoT)+' t de '+v.cargoNm:'baú vazio');return s}}
+// aviso de pesos (limite legal) quando passa do máximo
+FX.hooks.push((dt,va)=>{const t=va&&va.trl;if(t&&va===vehicles[cur]&&t.cargoT>t.cargoCap*1.02&&!t.ow){t.ow=1;say('⚖️ Excesso de peso na carreta!',3)}if(t&&t.cargoT<=t.cargoCap)t.ow=0});
+window.__FRT={genF,frDef,FRS:()=>FRS,DOCK};
 
 // ================= EDITOR DE OBJETOS (somente o dono) =================
 const ED=(()=>{const HASH='57d8cd3d7376973bf91a5ff807adfa49d16dc490ec6f8a5800800046a4093ac5',KEY='mp_objs',G=new THREE.Group();scene.add(G);
